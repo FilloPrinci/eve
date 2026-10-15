@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-10-15
+
+### Fixed
+- Linux AppImage: the video player failed with "libmpv could not be loaded" on current distributions
+  (e.g. Fedora), because older copies of system libraries bundled in the AppImage were loaded first.
+  The AppImage now uses the system's own libraries; each release is tested on Fedora before it is
+  published.
+- Leaving a zone's label field in the inspector without changing anything no longer locks the zone.
+
 ## [0.1.0-alpha.1] - 2026-10-15
 
 First test build. Not feature-complete: other AI providers (M7) and reloading changes made by other
