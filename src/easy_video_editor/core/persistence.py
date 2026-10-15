@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -61,10 +62,23 @@ def save_project(project: Project, directory: Path) -> None:
             os.fsync(handle.fileno())
         if target.exists():
             shutil.copy2(target, directory / BACKUP_FILE)
-        os.replace(temp_path, target)
+        _replace(temp_path, target)
     except BaseException:
         temp_path.unlink(missing_ok=True)
         raise
+
+
+def _replace(source: Path, target: Path, attempts: int = 10) -> None:
+    """`os.replace`, retried briefly: on Windows it fails while another process (EVE following
+    an AI edit) is reading the target."""
+    for attempt in range(attempts):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05)
 
 
 def load_project(directory: Path) -> Project:

@@ -55,6 +55,7 @@ class ProjectSession:
         self._redo: list[HistoryEntry] = []
         self._transaction: _Transaction | None = None
         self._listeners: list[Listener] = []
+        self._external: _Transaction | None = None
 
     @property
     def project(self) -> Project:
@@ -67,11 +68,16 @@ class ProjectSession:
 
     @property
     def can_undo(self) -> bool:
-        return bool(self._undo) and self._transaction is None
+        return bool(self._undo) and self._transaction is None and self._external is None
 
     @property
     def can_redo(self) -> bool:
-        return bool(self._redo) and self._transaction is None
+        return bool(self._redo) and self._transaction is None and self._external is None
+
+    @property
+    def external_active(self) -> bool:
+        """True while another process (the AI) is editing the project file."""
+        return self._external is not None
 
     def subscribe(self, listener: Listener) -> Callable[[], None]:
         """Call ``listener`` after every change. Returns a function that unsubscribes it."""
@@ -85,6 +91,10 @@ class ProjectSession:
 
         Inside a transaction the origin defaults to the transaction's origin.
         """
+        if self._external is not None:
+            raise CommandError(
+                "The project is being edited by the AI. Wait for it to finish or stop it."
+            )
         if self._transaction is not None:
             if origin is not None and origin is not self._transaction.origin:
                 raise CommandError("A command's origin must match its transaction's origin.")
@@ -141,6 +151,40 @@ class ProjectSession:
                 )
             )
 
+    # --- Changes made by another process -------------------------------------------------------
+
+    def begin_external(self, description: str, origin: Origin) -> None:
+        """Another process (e.g. the AI's MCP server) is about to edit the saved project.
+
+        Until `end_external`, local commands and undo/redo are refused and `set_external` shows
+        the other process's progress; everything it did becomes one undo step.
+        """
+        if self._transaction is not None or self._external is not None:
+            raise CommandError("Another change is already in progress.")
+        self._external = _Transaction(description, origin, self._project)
+
+    def set_external(self, project: Project) -> None:
+        """Show the latest state written by the other process. Raises `CommandError` if it
+        breaks the invariants (the project is then left unchanged)."""
+        if self._external is None:
+            raise CommandError("No external change is in progress.")
+        project = self._validated(project)
+        project.revision = self._project.revision + 1
+        self._project = project
+        self._notify()
+
+    def end_external(self) -> HistoryEntry | None:
+        """Close the external change; returns its history entry, or None if nothing changed."""
+        if self._external is None:
+            raise CommandError("No external change is in progress.")
+        external, self._external = self._external, None
+        before, after = external.before, self._project
+        if before.model_dump(exclude={"revision"}) == after.model_dump(exclude={"revision"}):
+            return None
+        entry = HistoryEntry(external.description, external.origin, before, after)
+        self._push(entry)
+        return entry
+
     def undo(self) -> HistoryEntry:
         if not self.can_undo:
             raise CommandError("Nothing to undo.")
@@ -159,7 +203,7 @@ class ProjectSession:
 
     def replace_project(self, project: Project) -> None:
         """Load a different project state (e.g. reloaded from disk) and clear the history."""
-        if self._transaction is not None:
+        if self._transaction is not None or self._external is not None:
             raise CommandError("Cannot replace the project during a transaction.")
         self._project = project
         self._undo.clear()

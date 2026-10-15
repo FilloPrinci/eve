@@ -19,14 +19,20 @@ from easy_video_editor.core.brand import BrandKit
 from easy_video_editor.core.commands import Command, CommandResult
 from easy_video_editor.core.errors import CommandError, EveError, NotFoundError
 from easy_video_editor.core.model import EditTimeline, Origin, Project
-from easy_video_editor.core.persistence import create_project, load_project, save_project
-from easy_video_editor.core.session import ProjectSession
+from easy_video_editor.core.persistence import (
+    PROJECT_FILE,
+    create_project,
+    load_project,
+    save_project,
+)
+from easy_video_editor.core.session import HistoryEntry, ProjectSession
 from easy_video_editor.media.binaries import Toolchain
 from easy_video_editor.media.cache import MediaCache
 
 log = logging.getLogger(__name__)
 
 AUTOSAVE_DELAY_MS = 800
+EXTERNAL_POLL_MS = 300
 
 
 class SelectionKind(StrEnum):
@@ -67,6 +73,10 @@ class ProjectController(QObject):
         self._autosave.setInterval(AUTOSAVE_DELAY_MS)
         self._autosave.timeout.connect(self.save)
         self._changedFromAnyThread.connect(self._on_changed, Qt.ConnectionType.QueuedConnection)
+        self._external_poll = QTimer(self)
+        self._external_poll.setInterval(EXTERNAL_POLL_MS)
+        self._external_poll.timeout.connect(self.follow_external)
+        self._external_stamp: tuple[int, int] | None = None
 
     # --- Project lifecycle ---------------------------------------------------------------------
 
@@ -101,7 +111,7 @@ class ProjectController(QObject):
 
     def save(self) -> None:
         self._autosave.stop()
-        if self.session is None or self.project_dir is None:
+        if self.session is None or self.project_dir is None or self.session.external_active:
             return
         try:
             save_project(self.session.project, self.project_dir)
@@ -153,6 +163,53 @@ class ProjectController(QObject):
             )
         return outcome
 
+    # --- Changes made by another process (the AI) ----------------------------------------------
+
+    @property
+    def external_active(self) -> bool:
+        return self.session is not None and self.session.external_active
+
+    def begin_external(self, description: str) -> None:
+        """Save, then follow the project file while the AI edits it (local editing is paused)."""
+        if self.session is None:
+            return
+        self.save()
+        self.session.begin_external(description, Origin.AI)
+        self._external_stamp = self._project_stamp()
+        self._external_poll.start()
+
+    def follow_external(self, force: bool = False) -> None:
+        """Show the AI's latest saved state, if the project file changed."""
+        if self.session is None or self.project_dir is None or not self.session.external_active:
+            return
+        stamp = self._project_stamp()
+        if not force and stamp == self._external_stamp:
+            return
+        self._external_stamp = stamp
+        try:
+            self.session.set_external(load_project(self.project_dir))
+        except EveError as problem:
+            log.warning("Ignoring an unreadable project update: %s", problem)
+
+    def end_external(self) -> HistoryEntry | None:
+        """Take the final state and record the AI's work as one undo step."""
+        if self.session is None or not self.session.external_active:
+            return None
+        self._external_poll.stop()
+        self.follow_external(force=True)
+        entry = self.session.end_external()
+        self._autosave.start()
+        return entry
+
+    def _project_stamp(self) -> tuple[int, int] | None:
+        if self.project_dir is None:
+            return None
+        try:
+            info = (self.project_dir / PROJECT_FILE).stat()
+        except OSError:
+            return None
+        return info.st_mtime_ns, info.st_size
+
     def undo(self) -> None:
         if self.session and self.session.can_undo:
             entry = self.session.undo()
@@ -183,7 +240,8 @@ class ProjectController(QObject):
         if self.current_timeline_id not in timeline_ids:
             self.set_current_timeline(timeline_ids[0] if timeline_ids else None)
         self.projectChanged.emit()
-        self._autosave.start()
+        if not self.external_active:
+            self._autosave.start()
 
     # --- Selection and current items -----------------------------------------------------------
 

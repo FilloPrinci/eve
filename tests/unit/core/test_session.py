@@ -134,3 +134,63 @@ def test_replace_project_clears_history(session: ProjectSession) -> None:
     session.replace_project(Project(name="Other"))
     assert session.project.name == "Other"
     assert not session.can_undo
+
+
+# --- Changes made by another process (the AI editing the saved project) ------------------------
+
+
+def _other_process_edit(session: ProjectSession, *edits: tuple[float, float]) -> list[Project]:
+    """States written by "another process": a separate session working on a copy."""
+    other = ProjectSession(session.project.model_copy(deep=True))
+    states = []
+    for start, end in edits:
+        other.execute(
+            CreateZone(kind=BLUE, clip_id="clip", start_us=int(start * S), end_us=int(end * S)),
+            AI,
+        )
+        states.append(other.project.model_copy(deep=True))
+    return states
+
+
+def test_external_changes_become_one_undo_step(session: ProjectSession) -> None:
+    before = session.project.model_dump(exclude={"revision"})
+    revision = session.project.revision
+    first, second = _other_process_edit(session, (0, 5), (10, 15))
+    session.begin_external("AI: phase 1", AI)
+    session.set_external(first)
+    session.set_external(second)
+    assert len(session.project.zones) == 2
+    assert session.project.revision == revision + 2
+    entry = session.end_external()
+    assert entry is not None and entry.origin is AI and entry.description == "AI: phase 1"
+    session.undo()
+    assert session.project.model_dump(exclude={"revision"}) == before
+    session.redo()
+    assert len(session.project.zones) == 2
+
+
+def test_local_edits_and_undo_are_paused_during_external_changes(
+    session: ProjectSession,
+) -> None:
+    zone(session, BLUE, 30, 35)
+    session.begin_external("AI", AI)
+    assert not session.can_undo
+    with pytest.raises(CommandError, match="being edited by the AI"):
+        zone(session, BLUE, 0, 5)
+    with pytest.raises(CommandError):
+        session.begin_external("again", AI)
+    assert session.end_external() is None  # nothing changed: no history entry
+    assert session.can_undo
+
+
+def test_external_states_must_respect_the_red_zone_rules(session: ProjectSession) -> None:
+    zone(session, RED, 10, 20)
+    broken = session.project.model_copy(deep=True)
+    broken.zones.append(
+        broken.zones[0].model_copy(update={"id": "blue", "kind": BLUE, "locked": False})
+    )
+    session.begin_external("AI", AI)
+    with pytest.raises(CommandError):
+        session.set_external(broken)
+    assert len(session.project.zones) == 1
+    session.end_external()
