@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] - 2026-10-15
+
+### Fixed
+- Linux AppImage: the editor crashed at start-up in X11 sessions (in `libxkbcommon`), because a
+  bundled X11 keyboard library did not match the system's. Release tests now also start the editor
+  on an X server.
+
 ## [0.1.0-alpha.2] - 2026-10-15
 
 ### Fixed

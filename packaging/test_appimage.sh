@@ -4,8 +4,10 @@
 # pipeline must run end to end with the bundled FFmpeg.
 # Usage: test_appimage.sh <path to EVE-*.AppImage>
 set -eu
+# What a desktop has: the player library, OpenGL/EGL, fonts, D-Bus, X11 keyboard support; plus a
+# virtual X server to start the GUI the way a desktop session does.
 dnf install -y --setopt=install_weak_deps=False mpv-libs mesa-libEGL mesa-libGL fontconfig \
-    libxkbcommon dbus-libs > /dev/null
+    libxkbcommon libxkbcommon-x11 dbus-libs xorg-x11-server-Xvfb xorg-x11-xauth > /dev/null
 work=$(mktemp -d)
 cp "$1" "$work/EVE.AppImage"
 cd "$work"
@@ -21,6 +23,8 @@ eve() { ./squashfs-root/AppRun cli "$@"; }
 eve --version
 eve doctor
 ./squashfs-root/AppRun --smoke-test  # fails if the system libmpv cannot be used
+echo "GUI start-up on X11 (Xvfb):"
+xvfb-run -a env QT_QPA_PLATFORM=xcb ./squashfs-root/AppRun --smoke-test
 ./squashfs-root/usr/lib/eve/bin/ffmpeg -v error -f lavfi -i "testsrc2=s=640x360:r=25:d=12" \
     -f lavfi -i "sine=frequency=440:d=12" -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
     -c:a aac clip.mp4
