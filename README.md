@@ -7,11 +7,17 @@ preview the edit, tweak it, and render every format in one go. Works on Linux an
 > Status: early development. See the [roadmap](docs/SPEC.md#16-milestones-the-mvp-is-m0m9).
 
 ## Download
-Pre-built binaries will be available on the [Releases page](../../releases/latest):
-- Windows: `EVE-<version>-windows-x64.zip`
-- Linux: `EVE-<version>-x86_64.AppImage`
+Pre-built binaries are on the [Releases page](https://github.com/FilloPrinci/eve/releases)
+(early versions are marked *pre-release*):
+- **Windows**: `EVE-<version>-windows-x64.zip`. Unzip it anywhere and run `EVE\eve-gui.exe`.
+  FFmpeg and libmpv are included.
+- **Linux**: `EVE-<version>-x86_64.AppImage`. Make it executable (`chmod +x EVE-*.AppImage`) and run
+  it. FFmpeg is included; the video player uses your system's libmpv (Fedora:
+  `sudo dnf install mpv-libs`, Debian/Ubuntu: `sudo apt install libmpv2`). Command-line use:
+  `./EVE-<version>-x86_64.AppImage cli doctor`.
 
-Verify downloads with the `SHA256SUMS` file attached to each release.
+Verify downloads with the `SHA256SUMS` file attached to each release. AI mode needs Claude Code
+logged in with your Claude account; see the [user guide](docs/USER_GUIDE.md).
 
 ## Features (planned for v0.1)
 - Three-step workflow with colour-coded zones: exclude (red), candidates (blue), highlights (yellow)

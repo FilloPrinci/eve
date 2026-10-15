@@ -523,6 +523,12 @@ subtitles via speech-to-text, additional languages for the UI, Flatpak.
 - Versioning: SemVer, tags `vX.Y.Z`; `CHANGELOG.md` in *Keep a Changelog* format; release notes generated
   from the changelog section.
 - Release assets: `EVE-<version>-windows-x64.zip`, `EVE-<version>-x86_64.AppImage`, `SHA256SUMS`.
+  The folder holds `eve` (command line, also the MCP server Claude Code starts) and `eve-gui` (the
+  editor); FFmpeg/FFprobe go in `bin/`. The Windows zip bundles `libmpv-2.dll`; the AppImage uses the
+  system libmpv (bundling it would pull in a whole desktop stack) and runs the command-line program
+  with `cli` as its first argument. Builds come from `.github/workflows/release.yml`, which smoke-tests
+  the packaged programs (doctor, Auto pipeline, draft render, GUI start-up) before publishing.
+- Pre-releases (`v0.1.0-alpha.N`) may be published before M9 so the owner can test on real machines.
 - README has a prominent "Download" section pointing to the latest release, plus build-from-source steps.
 
 ---

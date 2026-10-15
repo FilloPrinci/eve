@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-10-15
+
+First test build. Not feature-complete: other AI providers (M7) and reloading changes made by other
+programs while the editor is open (M8) are still missing.
+
 ### Added
+- Release builds: a Windows zip with FFmpeg and libmpv included and a Linux AppImage with FFmpeg
+  included, published with `SHA256SUMS` to GitHub Releases.
 - Project bootstrap: repository layout, packaging metadata, CI on Linux and Windows.
 - `eve --version` command-line entry point.
 - `eve-gui` entry point that opens an empty main window.

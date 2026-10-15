@@ -2,6 +2,26 @@
 
 EVE is in early development. This guide grows as features land.
 
+## Installing a release
+
+Download the file for your system from the
+[Releases page](https://github.com/FilloPrinci/eve/releases) and check it against `SHA256SUMS`.
+
+- **Windows**: unzip `EVE-<version>-windows-x64.zip` and start `EVE\eve-gui.exe`. Windows may warn
+  that the app is from an unknown publisher (the builds are not code-signed yet): choose *More info →
+  Run anyway*. The command-line program is `EVE\eve.exe`.
+- **Linux (Fedora and others)**: install the player library once (`sudo dnf install mpv-libs` on
+  Fedora), then:
+
+      chmod +x EVE-<version>-x86_64.AppImage
+      ./EVE-<version>-x86_64.AppImage                 # the editor
+      ./EVE-<version>-x86_64.AppImage cli doctor      # the command-line program
+
+  If the AppImage does not start, install FUSE 2 (`sudo dnf install fuse fuse-libs`).
+
+Projects, settings and logs are kept outside the program folder, so a new version can simply replace
+the old one.
+
 ## Running EVE from source
 
     uv sync
