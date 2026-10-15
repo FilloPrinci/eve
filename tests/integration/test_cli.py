@@ -55,3 +55,40 @@ def test_doctor_finds_ffmpeg(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["doctor"]) == EXIT_OK
     output = capsys.readouterr().out
     assert "[OK  ] ffmpeg" in output and "[OK  ] ffprobe" in output
+
+
+def test_ai_mode_and_ask_use_the_configured_provider(
+    project: Path,
+    media_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from typing import Any
+
+    from easy_video_editor import appsettings
+    from easy_video_editor.ai import runner
+    from easy_video_editor.ai.agent import AgentEvent, AgentResult, Usage
+    from easy_video_editor.ai.tools import ToolPhase
+
+    monkeypatch.setattr(appsettings, "config_dir", lambda: project.parent / "config")
+    calls: list[tuple[Any, ...]] = []
+
+    def fake_run(phase: ToolPhase, project_dir: Path, settings: Any, on_event: Any,
+                 request: str | None = None, toolchain: Any = None) -> AgentResult:  # fmt: skip
+        calls.append((phase, request, settings.provider))
+        on_event(AgentEvent("tool", "get_project_state()"))
+        return AgentResult("All done.", Usage(120, 30), 2)
+
+    monkeypatch.setattr(runner, "run_ai_phase", fake_run)
+    assert main(["import", str(project), str(media_dir / "clip.mp4"), "--no-media"]) == EXIT_OK
+    assert main(["analyze", str(project), "--mode", "ai"]) == EXIT_OK
+    assert main(["refresh", str(project), "--mode", "ai", "--provider", "anthropic"]) == EXIT_OK
+    assert main(["ask", str(project), "Shorter intro"]) == EXIT_OK
+    assert [(phase.value, request, provider.value) for phase, request, provider in calls] == [
+        ("analyze", None, "claude_code"),
+        ("followup", None, "anthropic"),
+        ("followup", "Shorter intro", "claude_code"),
+    ]
+    captured = capsys.readouterr()
+    assert "→ get_project_state()" in captured.out
+    assert "Tokens: 120 in, 30 out." in captured.err

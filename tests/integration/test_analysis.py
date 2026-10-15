@@ -93,4 +93,5 @@ def test_cli_auto_pipeline_and_follow_crop_render(media_dir: Path, tmp_path: Pat
     assert main(["render", str(project_dir), "--preset", "tall", "--draft"]) == EXIT_OK
     assert (project_dir / "exports" / "Auto-tall-draft.mp4").is_file()
     assert main(["refresh", str(project_dir)]) == EXIT_OK
+    # Without Claude Code (hidden from every test) AI mode explains what is missing.
     assert main(["analyze", str(project_dir), "--mode", "ai"]) != EXIT_OK

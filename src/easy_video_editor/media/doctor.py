@@ -32,6 +32,8 @@ class Check:
     fix: str | None = None
 
 
+CLAUDE_LOGIN = "# then run 'claude' once and log in with your Claude account"
+
 FIXES: dict[str, dict[str, str]] = {
     "ffmpeg": {
         "fedora": "sudo dnf install ffmpeg-free  # or 'ffmpeg' from RPM Fusion",
@@ -47,6 +49,11 @@ FIXES: dict[str, dict[str, str]] = {
         "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/ "
         "and put it next to EVE or on PATH (EVE releases bundle it)",
     },
+    "claude": {
+        family: "curl -fsSL https://claude.ai/install.sh | bash  " + CLAUDE_LOGIN
+        for family in ("fedora", "debian", "arch")
+    }
+    | {"windows": "In PowerShell: irm https://claude.ai/install.ps1 | iex  " + CLAUDE_LOGIN},
 }
 
 
@@ -124,9 +131,31 @@ def _keyring_check() -> Check:
     return Check("Keyring", Status.OK, type(backend).__name__)
 
 
+def _claude_check(claude: Path | None, family: str | None) -> Check:
+    name = "Claude Code (AI mode)"
+    if claude is None:
+        return Check(
+            name,
+            Status.WARNING,
+            "not found; AI mode needs Claude Code logged in with your Claude account "
+            "(Auto mode works without it)",
+            fix_for("claude", family),
+        )
+    try:
+        result = run([claude, "--version"])
+        version = result.stdout.strip().splitlines()[0] if result.stdout.strip() else "?"
+    except MediaError as error:
+        return Check(name, Status.WARNING, f"{claude} does not run: {error}")
+    return Check(name, Status.OK, f"{version} ({claude}); log in once by running 'claude'")
+
+
 def run_checks(
-    ffmpeg: Path | None = None, ffprobe: Path | None = None, libmpv: Path | None = None
+    ffmpeg: Path | None = None,
+    ffprobe: Path | None = None,
+    libmpv: Path | None = None,
+    claude: Path | None = None,
 ) -> list[Check]:
+    """``claude`` is the Claude Code executable found by the caller, or None if missing."""
     family = platform_family()
     ffmpeg_check, ffmpeg_path = _binary_check("ffmpeg", ffmpeg, family)
     ffprobe_check, _ = _binary_check("ffprobe", ffprobe, family)
@@ -145,4 +174,5 @@ def run_checks(
     if ffmpeg_path is not None:
         checks.append(_encoder_check(ffmpeg_path))
     checks.append(_keyring_check())
+    checks.append(_claude_check(claude, family))
     return checks

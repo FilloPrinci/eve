@@ -62,9 +62,12 @@ class TerminalProgress:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
+    from easy_video_editor.ai.claude_code import find_claude
+    from easy_video_editor.appsettings import load_app_settings
     from easy_video_editor.media.doctor import Status, run_checks
 
-    checks = run_checks()
+    path = load_app_settings().ai.claude_path
+    checks = run_checks(claude=find_claude(Path(path) if path else None))
     symbols = {Status.OK: "OK  ", Status.WARNING: "WARN", Status.ERROR: "FAIL"}
     for check in checks:
         print(f"[{symbols[check.status]}] {check.name}: {check.detail}")
@@ -209,7 +212,7 @@ def _run_phase(args: argparse.Namespace, phase_name: str) -> int:
     from easy_video_editor.media.cache import MediaCache
 
     if args.mode == "ai":
-        raise EveError("AI mode is not available yet; use --mode auto.")
+        return _run_ai(args, "followup" if phase_name == "refresh" else phase_name)
     phase = Phase(phase_name)
     toolchain = Toolchain.discover()
     session = ProjectSession(load_project(args.project))
@@ -243,6 +246,46 @@ def cmd_assemble(args: argparse.Namespace) -> int:
 
 def cmd_refresh(args: argparse.Namespace) -> int:
     return _run_phase(args, "refresh")
+
+
+def _run_ai(args: argparse.Namespace, phase_name: str, request: str | None = None) -> int:
+    from easy_video_editor.ai.agent import AgentEvent
+    from easy_video_editor.ai.runner import AiProviderKind, run_ai_phase
+    from easy_video_editor.ai.tools import ToolPhase
+    from easy_video_editor.analysis.pipeline import ensure_features
+    from easy_video_editor.appsettings import load_app_settings
+    from easy_video_editor.media.binaries import Toolchain
+    from easy_video_editor.media.cache import MediaCache
+
+    settings = load_app_settings().ai
+    if args.provider:
+        settings = settings.model_copy(update={"provider": AiProviderKind(args.provider)})
+    toolchain = Toolchain.discover()
+    project_dir = args.project.resolve()
+    ensure_features(
+        load_project(project_dir),
+        MediaCache(project_dir),
+        toolchain,
+        TerminalProgress("Analysis"),
+    )
+
+    def show(event: AgentEvent) -> None:
+        prefix = {"tool": "  → ", "error": "  ✗ "}.get(event.kind, "")
+        print(f"{prefix}{event.message}", flush=True)
+
+    result = run_ai_phase(
+        ToolPhase(phase_name), project_dir, settings, show, request=request, toolchain=toolchain
+    )
+    usage = result.usage
+    print(f"Tokens: {usage.input_tokens} in, {usage.output_tokens} out.", file=sys.stderr)
+    if result.error:
+        print(f"Error: {result.error}", file=sys.stderr)
+        return EXIT_ERROR
+    return EXIT_OK
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    return _run_ai(args, "followup", args.request)
 
 
 def cmd_mcp(args: argparse.Namespace) -> int:
@@ -300,6 +343,16 @@ def build_parser() -> argparse.ArgumentParser:
         phase = add(name, handler, text)
         phase.add_argument("project", type=Path, help="project folder (.eve)")
         phase.add_argument("--mode", choices=["auto", "ai"], default="auto")
+        phase.add_argument(
+            "--provider",
+            choices=["claude_code", "anthropic"],
+            help="AI provider for --mode ai (default: the one chosen in Preferences)",
+        )
+
+    ask = add("ask", cmd_ask, "ask the AI for a specific change to the project")
+    ask.add_argument("project", type=Path, help="project folder (.eve)")
+    ask.add_argument("request", help='what to change, e.g. "make the intro shorter"')
+    ask.add_argument("--provider", choices=["claude_code", "anthropic"])
 
     server = add("mcp", cmd_mcp, "serve the project's tools to an MCP client (stdio)")
     server.add_argument("--project", type=Path, required=True, help="project folder (.eve)")
