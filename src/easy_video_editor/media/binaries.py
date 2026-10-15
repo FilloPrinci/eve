@@ -6,7 +6,9 @@ Discovery order: path set in the settings → binaries bundled with the release 
 from __future__ import annotations
 
 import ctypes.util
+import functools
 import os
+import re
 import shutil
 import sys
 from dataclasses import dataclass
@@ -83,3 +85,21 @@ class Toolchain:
                 f"{' and '.join(missing)} not found. Run `eve doctor` for installation help."
             )
         return cls(ffmpeg=found_ffmpeg, ffprobe=found_ffprobe)
+
+
+def parse_ffmpeg_major(version_line: str) -> int | None:
+    """Major version from ``ffmpeg version 6.1.1-3ubuntu5 ...`` or ``ffmpeg version n7.1 ...``.
+
+    Git snapshot builds (``ffmpeg version 2025-01-01-git-...``) return None.
+    """
+    match = re.match(r"\w+ version n?(\d+)\.", version_line)
+    return int(match.group(1)) if match else None
+
+
+@functools.cache
+def ffmpeg_major_version(ffmpeg: Path) -> int:
+    """Major version of an ffmpeg binary; unknown (snapshot) builds count as recent."""
+    from easy_video_editor.media.process import run
+
+    output = run([ffmpeg, "-hide_banner", "-version"]).stdout
+    return parse_ffmpeg_major(output.splitlines()[0] if output else "") or 99

@@ -22,3 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `eve relink` (find moved source files by content).
 - Background job system with progress, ETA and cancellation.
 - Rotating log file in the user log folder.
+- Render engine: cuts, speed changes, reframing (centre crop, follow crop, blurred background),
+  crossfades, dips to black/white, flashes, text overlays, logo watermark, end card, music with fades,
+  game-audio ducking and two-pass loudness normalisation (default -14 LUFS).
+- Output presets 16:9, 9:16 and 4:5; draft renders from proxies.
+- `eve validate` and `eve render`.
+- Bundled Anton font (SIL Open Font License).

@@ -28,5 +28,15 @@ If you move or rename source files, find them again by content:
 
     eve relink "~/Videos/V-Core teaser.eve" --search ~/Videos/archive
 
+Check that a project can be exported, then render every enabled output preset:
+
+    eve validate "~/Videos/V-Core teaser.eve"
+    eve render "~/Videos/V-Core teaser.eve"                 # final quality
+    eve render "~/Videos/V-Core teaser.eve" --draft         # fast, low resolution, from proxies
+    eve render "~/Videos/V-Core teaser.eve" --preset shorts --output ~/Desktop
+
+Renders go to the project's `exports` folder. Export is refused if any output frame would come from
+an excluded (red) range, if a source file is missing or if the result is longer than the preset allows.
+
 Add `-v` to any command to see detailed logs. Logs are also written to `eve.log` in your user log
 folder (shown after errors).

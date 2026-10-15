@@ -209,7 +209,8 @@ state and the same tools, and must make **minimal changes** (only what the reque
    approximation. Updates immediately on every change.
 2. **Draft render**: a low-resolution, full-fidelity render (transitions, speed, overlays, audio mix) made
    with ffmpeg from proxies in the background, debounced after changes, cancellable. Shown with a
-   "draft" badge.
+   "draft" badge. Drafts render at one third of the preset size with single-pass loudness
+   normalisation; final renders use two-pass `loudnorm`.
 
 ### 6.3 Output presets (initial set)
 | Preset | Aspect | Resolution | Notes |
@@ -221,6 +222,10 @@ state and the same tools, and must make **minimal changes** (only what the reque
 - Frame rate: user-selectable (30/60), source footage conformed to it (sources may be VFR).
 - **Reframing modes** for vertical/4:5: centre crop; **follow crop** (crop window follows the motion centroid,
   smoothed); **blurred background** (full frame fitted in the middle, blurred zoomed copy behind).
+  A segment's `center_x`/`center_y` move the crop window by hand. Follow crop needs the motion path
+  produced by analysis (M5); without it, it behaves like a centre crop.
+- Text sizes are fractions of the short side of the output and shrink so that the longest line fits
+  90% of the width. Default styles: `title`, `caption`, `cta`.
 - Platform duration limits change over time: store them as editable preset values, never hardcode
   assumptions elsewhere in the code.
 - Loudness target default −14 LUFS integrated (ffmpeg `loudnorm`, two-pass), editable.
@@ -337,7 +342,9 @@ stdout/stderr and exit code are captured to the log, and progress is parsed from
 - **Project settings**: output presets, target duration, mood/pace, yellow tolerance, shot-length range,
   music, brand kit selection, transition style, reframing mode, loudness target, game-audio level.
 - **Brand kits** (reusable across projects): logo (PNG/SVG), game title, CTA text, fonts, colours, music
-  library folder. Bundle at least one open-licence font (OFL) so text rendering works out of the box.
+  library folder. Bundle at least one open-licence font (OFL) so text rendering works out of the box
+  (EVE bundles *Anton*). The renderer reads PNG/JPEG logos; SVG logos are rasterised to PNG when they are
+  added to a brand kit.
 
 ---
 

@@ -48,6 +48,7 @@ def run(
     on_line: Callable[[str], None] | None = None,
     on_chunk: Callable[[bytes], None] | None = None,
     check: bool = True,
+    cwd: Path | None = None,
 ) -> ProcessResult:
     """Run a process to completion.
 
@@ -65,6 +66,7 @@ def run(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         creationflags=_NO_WINDOW,
+        cwd=cwd,
     )
     assert process.stdout is not None and process.stderr is not None
     stdout_lines: list[str] = []

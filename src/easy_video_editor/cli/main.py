@@ -12,7 +12,7 @@ from typing import TextIO
 
 from easy_video_editor import __version__
 from easy_video_editor.core.errors import EveError
-from easy_video_editor.core.model import Origin, Project
+from easy_video_editor.core.model import Origin, OutputPreset, Project
 from easy_video_editor.core.persistence import (
     create_project,
     load_project,
@@ -36,12 +36,17 @@ class TerminalProgress:
         self._stream = stream or sys.stderr
         self._last = 0.0
         self._interactive = self._stream.isatty()
+        self._done_message: str | None = None
 
     def __call__(self, fraction: float | None, message: str = "") -> None:
         now = time.monotonic()
         if fraction is not None and fraction < 1.0 and now - self._last < 0.2:
             return
         self._last = now
+        if fraction is not None and fraction >= 1.0 and message == self._done_message:
+            return
+        if fraction is not None and fraction >= 1.0:
+            self._done_message = message
         percent = "" if fraction is None else f"{fraction * 100:3.0f}% "
         text = f"{self._title}: {percent}{message}"
         if self._interactive:
@@ -135,6 +140,63 @@ def cmd_relink(args: argparse.Namespace) -> int:
     return EXIT_ERROR if unresolved else EXIT_OK
 
 
+def _selected_presets(project: Project, preset_ids: list[str] | None) -> list[OutputPreset]:
+    ids = preset_ids or project.settings.enabled_preset_ids
+    if not ids:
+        raise EveError("No output preset selected. Use --preset or enable one in the settings.")
+    return [project.settings.preset(preset_id) for preset_id in ids]
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    from easy_video_editor.core.validation import validate_for_render
+    from easy_video_editor.media.render.build import RenderError
+    from easy_video_editor.media.render.renderer import timeline_for
+
+    project = load_project(args.project)
+    failed = False
+    for preset in _selected_presets(project, args.preset):
+        try:
+            report = validate_for_render(project, timeline_for(project, preset), preset)
+        except RenderError as error:
+            print(f"{preset.name}: error: {error}")
+            failed = True
+            continue
+        if not report.issues:
+            print(f"{preset.name}: OK")
+        for issue in report.issues:
+            print(f"{preset.name}: {issue.severity.value}: {issue.message}")
+        failed |= not report.ok
+    return EXIT_ERROR if failed else EXIT_OK
+
+
+def cmd_render(args: argparse.Namespace) -> int:
+    from easy_video_editor.media.binaries import Toolchain
+    from easy_video_editor.media.render.renderer import ValidationFailed, render_timeline
+
+    toolchain = Toolchain.discover()
+    project = load_project(args.project)
+    output_dir = args.output or args.project / "exports"
+    for preset in _selected_presets(project, args.preset):
+        suffix = "-draft" if args.draft else ""
+        output = output_dir / f"{project.name}-{preset.id}{suffix}.mp4"
+        try:
+            render_timeline(
+                project,
+                args.project,
+                preset,
+                output,
+                toolchain,
+                draft=args.draft,
+                progress=TerminalProgress(preset.name),
+            )
+        except ValidationFailed as error:
+            for issue in error.report.errors:
+                print(f"{preset.name}: {issue.message}", file=sys.stderr)
+            raise
+        print(output)
+    return EXIT_OK
+
+
 # --- Parser ------------------------------------------------------------------------------------
 
 
@@ -173,6 +235,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         help="folder to search (repeatable; default: the folder containing the project)",
     )
+    validate = add("validate", cmd_validate, "run the final validation for output presets")
+    validate.add_argument("project", type=Path, help="project folder (.eve)")
+    validate.add_argument("--preset", action="append", help="preset id (default: enabled ones)")
+
+    render = add("render", cmd_render, "render the edit timeline for output presets")
+    render.add_argument("project", type=Path, help="project folder (.eve)")
+    render.add_argument("--preset", action="append", help="preset id (default: enabled ones)")
+    render.add_argument("--draft", action="store_true", help="fast low-resolution render")
+    render.add_argument("--output", type=Path, help="output folder (default: <project>/exports)")
     return parser
 
 
