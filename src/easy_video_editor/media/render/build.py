@@ -39,8 +39,9 @@ from easy_video_editor.media.render.graph import (
 from easy_video_editor.media.render.styles import (
     DEFAULT_PRIMARY_COLOR,
     DEFAULT_TEXT_COLOR,
-    TEXT_STYLES,
+    TEXT_LOOKS,
     ffmpeg_color,
+    resolve_color,
 )
 from easy_video_editor.resources import DEFAULT_FONT
 
@@ -230,13 +231,15 @@ def build_graph(
     def add_text(
         text: str, style_name: str, x: float, y: float, start_s: float, end_s: float
     ) -> int:
-        style = TEXT_STYLES.get(style_name)
+        style = TEXT_LOOKS[project.settings.text_look].get(style_name)
         if style is None:
             raise RenderError(f"Unknown text style: {style_name}")
         size = fitted_font_size(text, style.size, graph.width, graph.height)
-        box = style.box
-        if box == "primary":
-            box = brand.primary_color if brand else DEFAULT_PRIMARY_COLOR
+        primary = brand.primary_color if brand else DEFAULT_PRIMARY_COLOR
+
+        def color(value: str | None) -> str | None:
+            return ffmpeg_color(resolve_color(value, primary)) if value else None
+
         text_file = f"text{len(graph.texts)}.txt"
         graph.files[text_file] = text
         graph.texts.append(
@@ -244,15 +247,20 @@ def build_graph(
                 text_file=text_file,
                 font_file=font_file,
                 size=size,
-                color=ffmpeg_color(
-                    style.color or (brand.text_color if brand else DEFAULT_TEXT_COLOR)
-                ),
+                color=color(style.color or (brand.text_color if brand else DEFAULT_TEXT_COLOR))
+                or "white",
                 x=x,
                 y=y,
                 start_s=start_s,
                 end_s=end_s,
                 border_width=round(style.border * size),
-                box_color=ffmpeg_color(box) if box else None,
+                border_color=style.border_color,
+                box_color=color(style.box),
+                shadow_color=color(style.shadow),
+                shadow_offset=max(1, round(style.shadow_offset * size)) if style.shadow else 0,
+                band_color=color(style.band),
+                band_height=round(size * 1.8) if style.band else 0,
+                align=style.align,
             )
         )
         return len(graph.texts) - 1

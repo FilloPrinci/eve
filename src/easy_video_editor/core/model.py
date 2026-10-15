@@ -50,6 +50,17 @@ class TransitionKind(StrEnum):
     FLASH = "flash"
 
 
+class TextLook(StrEnum):
+    """A coordinated set of text styles (title, caption, call to action)."""
+
+    CLASSIC = "classic"
+    """White outlined title, caption on a dark box, call to action on an accent box."""
+    BAND = "band"
+    """Accent title on a dark full-width band, shadowed left-aligned caption."""
+    BOLD = "bold"
+    """Large title with an accent shadow, left-aligned caption on an accent bar."""
+
+
 class ReframeMode(StrEnum):
     CENTER_CROP = "center_crop"
     FOLLOW_CROP = "follow_crop"
@@ -299,6 +310,7 @@ class ProjectSettings(EveModel):
     shot_length_min_us: PositiveUs = 1_000_000
     shot_length_max_us: PositiveUs = 4_000_000
     transition_style: TransitionKind = TransitionKind.CUT
+    text_look: TextLook = TextLook.CLASSIC
     loudness_target_lufs: float = Field(default=-14.0, le=0.0)
     game_audio_db: float = -6.0
     brand_kit_id: str | None = None

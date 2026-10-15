@@ -101,6 +101,12 @@ class TextNode:
     border_width: int = 0
     border_color: str = "black"
     box_color: str | None = None
+    shadow_color: str | None = None
+    shadow_offset: int = 0
+    band_color: str | None = None
+    band_height: int = 0
+    align: str = "center"
+    """``center`` (around ``x``) or ``left`` (at a fixed margin)."""
     fade_s: float = 0.2
 
 

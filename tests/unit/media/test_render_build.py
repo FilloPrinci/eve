@@ -230,3 +230,48 @@ def test_parse_loudnorm() -> None:
     }  # fmt: skip
     assert parse_loudnorm(stderr.replace('"-20.31"', '"-inf"')) is None
     assert parse_loudnorm("no json here") is None
+
+
+# --- Text looks --------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("look", ["band", "bold"])
+def test_golden_text_looks(look: str) -> None:
+    from easy_video_editor.core.model import TextLook
+
+    project = build_project()
+    project.settings.text_look = TextLook(look)
+    project.timelines[0].texts[0].style = "caption"
+    graph = build_graph(
+        project, project.timelines[0], project.settings.preset("wide"), RenderOptions(brand=BRAND)
+    )
+    check_golden(f"wide_{look}_filter.txt", filter_script(graph))
+
+
+def test_every_look_defines_every_style() -> None:
+    from easy_video_editor.core.model import TextLook
+    from easy_video_editor.media.render.styles import STYLE_NAMES, TEXT_LOOKS
+
+    assert set(TEXT_LOOKS) == set(TextLook)
+    assert all(set(styles) == set(STYLE_NAMES) for styles in TEXT_LOOKS.values())
+
+
+def test_resolve_color() -> None:
+    from easy_video_editor.media.render.styles import resolve_color
+
+    assert resolve_color("primary", "#112233") == "#112233"
+    assert resolve_color("primary@0.5", "#112233") == "#112233@0.5"
+    assert resolve_color("#000000@0.6", "#112233") == "#000000@0.6"
+
+
+def test_text_look_setting_is_validated() -> None:
+    from easy_video_editor.core.commands import UpdateSettings
+    from easy_video_editor.core.errors import CommandError
+    from easy_video_editor.core.model import Origin, Project
+    from easy_video_editor.core.session import ProjectSession
+
+    session = ProjectSession(Project(name="P"))
+    assert session.project.settings.text_look == "classic"
+    session.execute(UpdateSettings(changes={"text_look": "bold"}), Origin.USER)
+    with pytest.raises(CommandError):
+        session.execute(UpdateSettings(changes={"text_look": "fancy"}), Origin.USER)

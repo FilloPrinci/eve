@@ -162,3 +162,20 @@ def test_cli_render_reports_validation_errors(
     assert main(["validate", str(project_dir), "--preset", "wide"]) == EXIT_ERROR
     assert main(["render", str(project_dir), "--preset", "wide"]) == EXIT_ERROR
     assert "missing" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("look", ["classic", "band", "bold"])
+def test_every_text_look_renders(
+    project_dir: Path, media_dir: Path, toolchain: Toolchain, look: str
+) -> None:
+    from easy_video_editor.core.model import TextLook
+
+    project = build_project(media=media_dir)
+    project.settings.text_look = TextLook(look)
+    project.timelines[0].texts[0].style = "caption"
+    output = project_dir / "exports" / f"{look}.mp4"
+    render_timeline(
+        project, project_dir, project.settings.preset("wide"), output, toolchain, draft=True,
+        options=RenderOptions(brand=brand(media_dir)),
+    )  # fmt: skip
+    assert int(stream_info(output)["video"]["nb_frames"]) == 169

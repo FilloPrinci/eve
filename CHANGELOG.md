@@ -27,4 +27,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   game-audio ducking and two-pass loudness normalisation (default -14 LUFS).
 - Output presets 16:9, 9:16 and 4:5; draft renders from proxies.
 - `eve validate` and `eve render`.
+- Three selectable text looks (`classic`, `band`, `bold`) using the brand kit's accent colour.
 - Bundled Anton font (SIL Open Font License).

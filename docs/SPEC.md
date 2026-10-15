@@ -225,7 +225,13 @@ state and the same tools, and must make **minimal changes** (only what the reque
   A segment's `center_x`/`center_y` move the crop window by hand. Follow crop needs the motion path
   produced by analysis (M5); without it, it behaves like a centre crop.
 - Text sizes are fractions of the short side of the output and shrink so that the longest line fits
-  90% of the width. Default styles: `title`, `caption`, `cta`.
+  90% of the width. Text styles: `title`, `caption`, `cta`. Their appearance comes from the project's
+  **text look**, chosen by the user: `classic` (default: white outlined title, caption on a dark box,
+  call to action on an accent box), `band` (accent title on a dark full-width band, shadowed
+  left-aligned caption, outlined accent call to action) or `bold` (large title with an accent shadow,
+  left-aligned caption on an accent bar, call to action on an accent box). The accent is the brand
+  kit's primary colour.
+- Default transition: cut. Crossfades, dips and flashes are chosen per segment.
 - Platform duration limits change over time: store them as editable preset values, never hardcode
   assumptions elsewhere in the code.
 - Loudness target default −14 LUFS integrated (ffmpeg `loudnorm`, two-pass), editable.
@@ -340,7 +346,8 @@ stdout/stderr and exit code are captured to the log, and progress is parsed from
   (auto-detected), proxy resolution, cache size limit, AI provider profiles (provider, endpoint, model,
   capabilities; keys in keyring), defaults for new projects.
 - **Project settings**: output presets, target duration, mood/pace, yellow tolerance, shot-length range,
-  music, brand kit selection, transition style, reframing mode, loudness target, game-audio level.
+  music, brand kit selection, transition style, text look, reframing mode, loudness target, game-audio
+  level.
 - **Brand kits** (reusable across projects): logo (PNG/SVG), game title, CTA text, fonts, colours, music
   library folder. Bundle at least one open-licence font (OFL) so text rendering works out of the box
   (EVE bundles *Anton*). The renderer reads PNG/JPEG logos; SVG logos are rasterised to PNG when they are
@@ -497,7 +504,8 @@ ffmpeg/mpv build choice must be revisited.
 ## 19. Open decisions (ask the owner when you reach them; do not block earlier milestones)
 
 - Final licence confirmation (default above).
-- Exact default transition and text styles (propose 2–3 options with draft renders).
+- ~~Exact default transition and text styles~~ — decided: default transition *cut*; three
+  user-selectable text looks with `classic` as the default (§6.3).
 - Default model per provider profile and per-run frame budgets (propose based on cost/quality tests).
 
 ---

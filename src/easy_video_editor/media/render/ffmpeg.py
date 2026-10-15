@@ -20,6 +20,7 @@ from easy_video_editor.media.render.graph import (
     RenderGraph,
     TextNode,
 )
+from easy_video_editor.media.render.styles import LEFT_MARGIN
 
 VIDEO_OUT, AUDIO_OUT = "vout", "aout"
 AUDIO_FORMAT = "aformat=sample_fmts=fltp:channel_layouts=stereo"
@@ -120,21 +121,41 @@ def _drawtext(text: TextNode, overlay: bool) -> str:
         "expansion=none",
         f"fontsize={text.size}",
         f"fontcolor={text.color}",
-        f"x='w*{num(text.x)}-text_w/2'",
+        f"x='w*{num(LEFT_MARGIN)}'" if text.align == "left" else f"x='w*{num(text.x)}-text_w/2'",
         f"y='h*{num(text.y)}-text_h/2'",
     ]
     if text.border_width:
         options += [f"borderw={text.border_width}", f"bordercolor={text.border_color}"]
     if text.box_color:
         options += ["box=1", f"boxcolor={text.box_color}", f"boxborderw={max(4, text.size // 4)}"]
+    if text.shadow_color:
+        options += [
+            f"shadowcolor={text.shadow_color}",
+            f"shadowx={text.shadow_offset}",
+            f"shadowy={text.shadow_offset}",
+        ]
     start, end, fade = num(text.start_s), num(text.end_s), num(text.fade_s)
+    enable = f"enable='between(t,{start},{end})'"
     if overlay:
-        options.append(f"enable='between(t,{start},{end})'")
+        options.append(enable)
     options.append(
         f"alpha='if(lt(t,{start}+{fade}),max(0,(t-{start})/{fade}),"
         f"if(gt(t,{end}-{fade}),max(0,({end}-t)/{fade}),1))'"
     )
-    return "drawtext=" + ":".join(options)
+    drawtext = "drawtext=" + ":".join(options)
+    if not text.band_color:
+        return drawtext
+    band = [
+        "x=0",
+        f"y='ih*{num(text.y)}-{text.band_height // 2}'",
+        "w=iw",
+        f"h={text.band_height}",
+        f"color={text.band_color}",
+        "t=fill",
+    ]
+    if overlay:
+        band.append(enable)
+    return "drawbox=" + ":".join(band) + "," + drawtext
 
 
 def _clip_video(node: ClipNode, index: int, graph: RenderGraph) -> str:
