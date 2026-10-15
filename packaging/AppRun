@@ -1,0 +1,9 @@
+#!/bin/sh
+# AppImage entry point: starts the GUI, or the command-line program with "cli" as first argument
+# (e.g. ./EVE.AppImage cli doctor).
+HERE="$(dirname "$(readlink -f "$0")")"
+if [ "$1" = "cli" ]; then
+    shift
+    exec "$HERE/usr/lib/eve/eve" "$@"
+fi
+exec "$HERE/usr/lib/eve/eve-gui" "$@"

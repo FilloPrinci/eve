@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=EVE
+GenericName=Video Editor
+Comment=Turn gameplay recordings into short trailers
+Exec=eve-gui %F
+Icon=eve
+Categories=AudioVideo;Video;AudioVideoEditing;
+Terminal=false

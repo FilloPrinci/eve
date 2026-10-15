@@ -40,3 +40,8 @@ packaging/bin/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Release builds
+AppDir/
+out/
+*.AppImage

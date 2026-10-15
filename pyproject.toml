@@ -42,6 +42,9 @@ dev = [
     "mypy>=1.11",
     "pytest-github-actions-annotate-failures>=0.4.2",
 ]
+release = [
+    "pyinstaller>=6.10",
+]
 
 [build-system]
 requires = ["hatchling"]
