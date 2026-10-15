@@ -120,6 +120,13 @@ Every zone stores: `id`, `kind`, `clip_id`, `start_us`, `end_us` (integer micros
    - Creating or extending a red zone over existing blue/yellow zones **trims** them, or **splits** them
      in two when the red range falls in the middle — even if they are locked. EVE notifies the user.
    - Transitions must not consume frames from red zones (transition "handles" count as used frames).
+     Handles are centred on the cut: a crossfade of duration *d* uses *d*/2 of extra output time
+     (converted to source time with the segment speed) after the outgoing segment and before the
+     incoming one. Dips and flashes do not blend shots and need no handles.
+   - Blue/yellow zones and edit-timeline segments never overlap red ranges, whoever creates them
+     (the user included): such commands are rejected. When a red zone is created or extended, segments
+     using those frames are trimmed, split or removed as well (and marked stale), and crossfades whose
+     handles would need red frames become cuts.
    - Red exclusion applies to both the video and the original audio of the clip (added music is unaffected).
 2. **Locked zones** are never changed or deleted by AI/Auto. Re-running a phase keeps them and works around them.
 3. **Yellow vs blue**: a yellow zone may extend beyond its blue parent by at most the configurable
@@ -257,7 +264,9 @@ Every mutation is a command (`AddClip`, `RemoveClip`, `CreateZone`, `UpdateZone`
 - validate against the rules in §4.4 (including red-zone and lock rules) and reject invalid operations
   with a clear error message (which is returned to the AI as a tool error);
 - are grouped into transactions (one AI phase run = one undo step, plus finer steps inside it);
-- record `origin` (user / ai / auto) and are listed in a history panel.
+- record `origin` (user / ai / auto) and are listed in a history panel;
+- some are user-only regardless of the caller: clip import/removal, project settings and output presets,
+  zone lock/unlock, and every red-zone mutation.
 
 ### 7.4 Tool registry
 A single registry defines every tool once with a JSON Schema for its arguments. The same definitions are
