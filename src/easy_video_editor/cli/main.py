@@ -245,6 +245,14 @@ def cmd_refresh(args: argparse.Namespace) -> int:
     return _run_phase(args, "refresh")
 
 
+def cmd_mcp(args: argparse.Namespace) -> int:
+    from easy_video_editor.ai.tools import ToolPhase
+    from easy_video_editor.mcp.server import serve
+
+    serve(args.project.resolve(), ToolPhase(args.phase), args.frame_budget)
+    return EXIT_OK
+
+
 # --- Parser ------------------------------------------------------------------------------------
 
 
@@ -292,6 +300,16 @@ def build_parser() -> argparse.ArgumentParser:
         phase = add(name, handler, text)
         phase.add_argument("project", type=Path, help="project folder (.eve)")
         phase.add_argument("--mode", choices=["auto", "ai"], default="auto")
+
+    server = add("mcp", cmd_mcp, "serve the project's tools to an MCP client (stdio)")
+    server.add_argument("--project", type=Path, required=True, help="project folder (.eve)")
+    server.add_argument(
+        "--phase",
+        choices=["analyze", "refine", "assemble", "followup"],
+        default="followup",
+        help="which tools to expose (default: all editing tools)",
+    )
+    server.add_argument("--frame-budget", type=int, help="maximum frames the client may view")
 
     validate = add("validate", cmd_validate, "run the final validation for output presets")
     validate.add_argument("project", type=Path, help="project folder (.eve)")
