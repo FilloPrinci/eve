@@ -37,8 +37,9 @@ def analysis(script):
 
 SYSTEM_DIRS = ("/lib/", "/lib64/", "/usr/lib/", "/usr/lib64/")
 KEEP_SYSTEM = (
-    # Rarely preinstalled and free of version clashes.
-    "libpython", "libmpdec", "libxcb-cursor", "libxcb-icccm", "libxcb-image", "libxcb-keysyms",
+    # Rarely preinstalled, or named differently elsewhere (Debian's libbz2.so.1.0), and free of
+    # version clashes.
+    "libpython", "libmpdec", "libbz2", "libxcb-cursor", "libxcb-icccm", "libxcb-image", "libxcb-keysyms",
     "libxcb-render-util", "libxcb-util", "libxkbcommon-x11",
 )  # fmt: skip
 
