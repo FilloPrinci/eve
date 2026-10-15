@@ -66,3 +66,22 @@ class RemoveClip(Command):
                 f"and {removed_segments} timeline segment(s)."
             )
         return CommandResult(notices=notices)
+
+
+class RelinkClip(Command):
+    """Point a clip to a new location of its source file."""
+
+    clip_id: str
+    path: str
+    fingerprint: str | None = None
+
+    def apply(self, project: Project, ctx: CommandContext) -> CommandResult:
+        ctx.require_user("relink clips")
+        path = Path(self.path)
+        if not path.is_absolute():
+            raise CommandError(f"Clip path must be absolute: {self.path}")
+        clip = project.clip(self.clip_id)
+        clip.path = str(path)
+        if self.fingerprint is not None:
+            clip.fingerprint = self.fingerprint
+        return CommandResult()

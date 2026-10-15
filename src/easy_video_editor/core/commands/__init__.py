@@ -1,7 +1,7 @@
 """Every project mutation is a command (SPEC §7.3)."""
 
 from easy_video_editor.core.commands.base import Command, CommandContext, CommandResult
-from easy_video_editor.core.commands.clips import AddClip, RemoveClip
+from easy_video_editor.core.commands.clips import AddClip, RelinkClip, RemoveClip
 from easy_video_editor.core.commands.settings import SetOutputPresets, UpdateSettings
 from easy_video_editor.core.commands.timeline import (
     AddSegment,
@@ -31,6 +31,7 @@ __all__ = [
     "DeleteTimeline",
     "DeleteZone",
     "MoveSegment",
+    "RelinkClip",
     "RemoveClip",
     "RemoveSegment",
     "RemoveText",
