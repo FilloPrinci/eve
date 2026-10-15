@@ -33,7 +33,9 @@ class JobRunner(QObject):
     def __init__(self, manager: JobManager, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.manager = manager
-        self._callbacks: dict[str, tuple[SuccessCallback | None, ErrorCallback | None]] = {}
+        self._callbacks: dict[
+            str, tuple[SuccessCallback | None, ErrorCallback | None, Callable[[], None] | None]
+        ] = {}
         self._changed.connect(self._on_changed, Qt.ConnectionType.QueuedConnection)
         manager.subscribe(self._changed.emit)
 
@@ -43,9 +45,10 @@ class JobRunner(QObject):
         function: Callable[[JobContext], Any],
         on_success: SuccessCallback | None = None,
         on_error: ErrorCallback | None = None,
+        on_cancel: Callable[[], None] | None = None,
     ) -> Job:
         job = self.manager.submit(title, function)
-        self._callbacks[job.id] = (on_success, on_error)
+        self._callbacks[job.id] = (on_success, on_error, on_cancel)
         return job
 
     def cancel(self, job_id: str) -> None:
@@ -59,11 +62,13 @@ class JobRunner(QObject):
         self.jobChanged.emit(job)
         if not job.state.finished or job.id not in self._callbacks:
             return
-        on_success, on_error = self._callbacks.pop(job.id)
+        on_success, on_error, on_cancel = self._callbacks.pop(job.id)
         if job.state is JobState.SUCCEEDED and on_success:
             on_success(job.result)
         elif job.state is JobState.FAILED and on_error:
             on_error(job.error or "Unknown error")
+        elif job.state is JobState.CANCELLED and on_cancel:
+            on_cancel()
 
 
 def format_eta(seconds: float | None) -> str:

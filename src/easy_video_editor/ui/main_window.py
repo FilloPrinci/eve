@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from easy_video_editor import __version__
+from easy_video_editor.ai.claude_code import find_claude
 from easy_video_editor.analysis.pipeline import Phase
 from easy_video_editor.appsettings import AppSettings
 from easy_video_editor.core.commands import (
@@ -324,6 +325,7 @@ class MainWindow(QMainWindow):
         dialog = AppSettingsDialog(self.controller.settings, self)
         if dialog.exec():
             self.controller.update_settings(dialog.settings)
+            self.automation.update_mode()
 
     def export(self) -> None:
         if self.controller.project is None:
@@ -337,6 +339,7 @@ class MainWindow(QMainWindow):
             Path(settings.ffmpeg_path) if settings.ffmpeg_path else None,
             Path(settings.ffprobe_path) if settings.ffprobe_path else None,
             Path(settings.libmpv_path) if settings.libmpv_path else None,
+            find_claude(Path(settings.ai.claude_path) if settings.ai.claude_path else None),
         )
         SystemCheckDialog(checks, self).exec()
         if not settings.system_check_done:

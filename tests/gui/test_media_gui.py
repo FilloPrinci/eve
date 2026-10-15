@@ -220,7 +220,7 @@ def test_run_all_phases_from_the_panel(media_window: MainWindow, qtbot: QtBot) -
     from easy_video_editor.ui.automation_panel import ALL_PHASES
 
     panel = media_window.automation
-    assert not panel.mode.model().item(1).isEnabled()  # type: ignore[attr-defined]
+    assert not panel.ai_mode
     history = len(media_window.controller.session.history)  # type: ignore[union-attr]
     finished: list[bool] = []
     panel.run(list(ALL_PHASES), then=lambda: finished.append(True))

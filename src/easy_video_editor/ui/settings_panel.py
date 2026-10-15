@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -31,9 +32,13 @@ from PySide6.QtWidgets import (
 )
 
 from easy_video_editor import appsettings
+from easy_video_editor.ai.agent import ANTHROPIC_PRICES
+from easy_video_editor.ai.runner import AiProviderKind
+from easy_video_editor.ai.secrets import get_api_key, set_api_key
 from easy_video_editor.appsettings import AppSettings
 from easy_video_editor.core.brand import BrandKit
 from easy_video_editor.core.commands import Command, SetEndCard, SetMusic, UpdateSettings
+from easy_video_editor.core.errors import EveError
 from easy_video_editor.core.ids import new_id
 from easy_video_editor.core.model import MusicCue, TextLook, TransitionKind
 from easy_video_editor.ui.controller import ProjectController
@@ -497,7 +502,78 @@ class AppSettingsDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addLayout(form)
         layout.addWidget(note)
+        layout.addWidget(self._ai_group(settings))
         layout.addWidget(box)
+
+    def _ai_group(self, settings: AppSettings) -> QGroupBox:
+        ai = settings.ai
+        self.ai_provider = QComboBox()
+        self.ai_provider.addItem(
+            self.tr("Claude Code (your Claude plan, no API key)"), AiProviderKind.CLAUDE_CODE
+        )
+        self.ai_provider.addItem(self.tr("Anthropic API (API key)"), AiProviderKind.ANTHROPIC)
+        self.ai_provider.setCurrentIndex(max(0, self.ai_provider.findData(ai.provider)))
+        self.claude_path = QLineEdit(ai.claude_path or "")
+        self.claude_path.setPlaceholderText(self.tr("Detect automatically"))
+        self.claude_model = QComboBox()
+        self.claude_model.setEditable(True)
+        self.claude_model.addItem(self.tr("Plan default"), "")
+        for alias in ("sonnet", "opus", "haiku"):
+            self.claude_model.addItem(alias, alias)
+        index = self.claude_model.findData(ai.claude_model)
+        if index >= 0:
+            self.claude_model.setCurrentIndex(index)
+        else:
+            self.claude_model.setEditText(ai.claude_model)
+        self.anthropic_model = QComboBox()
+        self.anthropic_model.setEditable(True)
+        self.anthropic_model.addItems(list(ANTHROPIC_PRICES))
+        self.anthropic_model.setCurrentText(ai.anthropic_model)
+        self.effort = QComboBox()
+        self.effort.addItems(["low", "medium", "high"])
+        self.effort.setCurrentText(ai.effort)
+        self.frame_budget = QSpinBox()
+        self.frame_budget.setRange(0, 200)
+        self.frame_budget.setValue(ai.frame_budget)
+        self.frame_budget.setToolTip(
+            self.tr("How many video frames the AI may look at per run (more frames, more usage).")
+        )
+        self.api_key = QLineEdit()
+        self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.clear_key = QCheckBox(self.tr("Remove the stored key"))
+        try:
+            stored = bool(get_api_key("anthropic"))
+        except EveError:
+            stored = False
+            self.api_key.setEnabled(False)
+            self.api_key.setPlaceholderText(self.tr("No system keyring available"))
+        else:
+            self.api_key.setPlaceholderText(
+                self.tr("A key is stored; type to replace it") if stored else self.tr("Not set")
+            )
+        self.clear_key.setVisible(stored)
+        form = QFormLayout()
+        form.addRow(self.tr("Provider"), self.ai_provider)
+        form.addRow(self.tr("Claude Code program"), self.claude_path)
+        form.addRow(self.tr("Claude Code model"), self.claude_model)
+        form.addRow(self.tr("API model"), self.anthropic_model)
+        form.addRow(self.tr("API effort"), self.effort)
+        form.addRow(self.tr("API key"), self.api_key)
+        form.addRow("", self.clear_key)
+        form.addRow(self.tr("Frame budget"), self.frame_budget)
+        help_text = QLabel(
+            self.tr(
+                "Claude Code uses your Claude subscription: install it, run “claude” once in a "
+                "terminal and log in (see Help → System check). The API key is kept in the system "
+                "keyring, never in files."
+            )
+        )
+        help_text.setWordWrap(True)
+        group = QGroupBox(self.tr("AI mode"))
+        layout = QVBoxLayout(group)
+        layout.addLayout(form)
+        layout.addWidget(help_text)
+        return group
 
     def _accept(self) -> None:
         self.settings.ffmpeg_path = self.ffmpeg.text().strip() or None
@@ -505,4 +581,19 @@ class AppSettingsDialog(QDialog):
         self.settings.libmpv_path = self.libmpv.text().strip() or None
         self.settings.proxy_height = self.proxy.value()
         self.settings.cache_limit_mb = self.cache.value()
+        ai = self.settings.ai
+        ai.provider = AiProviderKind(self.ai_provider.currentData())
+        ai.claude_path = self.claude_path.text().strip() or None
+        model = self.claude_model.currentText().strip()
+        ai.claude_model = "" if model == self.claude_model.itemText(0) else model
+        ai.anthropic_model = self.anthropic_model.currentText().strip() or ai.anthropic_model
+        ai.effort = self.effort.currentText()  # type: ignore[assignment]
+        ai.frame_budget = self.frame_budget.value()
+        key = self.api_key.text().strip()
+        if key or self.clear_key.isChecked():
+            try:
+                set_api_key("anthropic", key)
+            except EveError as error:
+                QMessageBox.warning(self, self.tr("EVE"), str(error))
+                return
         self.accept()
