@@ -116,7 +116,7 @@ jobs:
           "$EVE" assemble "$work/Smoke.eve"
           "$EVE" render "$work/Smoke.eve" --draft
           ls "$work/Smoke.eve/exports"
-          dist/EVE/eve-gui --smoke-test
+          dist/EVE/eve-gui --smoke-test  # fails if an installed or bundled libmpv cannot be used
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
@@ -137,6 +137,12 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool AppDir \
             "out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage"
           APPIMAGE_EXTRACT_AND_RUN=1 "out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage" cli --version
+
+      - name: Test the AppImage on Fedora
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -v "$PWD/out:/out:ro" -v "$PWD/packaging:/packaging:ro" fedora:latest \
+            sh /packaging/test_appimage.sh "/out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage"
 
       - uses: actions/upload-artifact@v4
         with:

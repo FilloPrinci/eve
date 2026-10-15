@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 from easy_video_editor import __version__
 from easy_video_editor.appsettings import load_app_settings
 from easy_video_editor.logs import setup_logging
+from easy_video_editor.media.binaries import find_libmpv
 from easy_video_editor.resources import DEFAULT_FONT, RESOURCES_DIR
 from easy_video_editor.ui.log_console import QtLogHandler
 from easy_video_editor.ui.main_window import MainWindow
@@ -62,9 +63,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         window.open_project(Path(args[1]))
     if smoke_test:
         QTimer.singleShot(1500, app.quit)
-    else:
-        window.maybe_first_run_check()
+        app.exec()
+        return smoke_test_result(window)
+    window.maybe_first_run_check()
     return app.exec()
+
+
+def smoke_test_result(window: MainWindow) -> int:
+    """0, or 3 when a libmpv is installed (or bundled) but the player could not use it."""
+    view = window.player_host.view
+    reason = getattr(view, "reason", None)
+    print(f"player: {reason or type(view).__name__}", flush=True)
+    libmpv = window.controller.settings.libmpv_path
+    return 3 if reason and find_libmpv(Path(libmpv) if libmpv else None) else 0
 
 
 if __name__ == "__main__":

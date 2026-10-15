@@ -330,6 +330,7 @@ def create_view(libmpv_override: Path | None = None) -> Any:
         except Exception as error:
             log.exception("Cannot start mpv")
             reason = f"mpv could not be started: {error}"
+    log.warning("Video player unavailable: %s", reason)
     return PlaceholderView(reason)
 
 
