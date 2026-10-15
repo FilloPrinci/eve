@@ -17,7 +17,7 @@ core                     ──► project model, zones, edit timeline, commands
 `core`, `media`, `analysis` and `ai` must not import Qt. This is enforced by
 `tests/unit/test_layering.py`.
 
-## Current state (M3 — Render engine)
+## Current state (M4 — GUI, manual mode)
 
 | Package | Status |
 |---|---|
@@ -25,7 +25,8 @@ core                     ──► project model, zones, edit timeline, commands
 | `easy_video_editor.media` | Binary discovery, process runner, ffprobe, fingerprints, relinking, proxies, thumbnail strips, waveforms, system check. |
 | `easy_video_editor.media.render` | Edit timeline → render graph → ffmpeg; final and draft renders. |
 | `easy_video_editor.cli` | `eve` entry point (`cli/main.py`): `doctor`, `new`, `import`, `relink`, `validate`, `render`. |
-| `easy_video_editor.ui` | `eve-gui` entry point (`ui/app.py`) opening an empty `MainWindow`. |
+| `easy_video_editor.ui` | PySide6 GUI for manual editing (see below). |
+| `easy_video_editor.appsettings` | Application settings (binary paths, proxy height, brand kits, recent projects) in the user config folder. |
 | `analysis`, `ai`, `mcp` | Empty packages. |
 
 ## Core
@@ -101,6 +102,25 @@ EditTimeline ──build.py──► RenderGraph ──ffmpeg.py──► filter
   with `EVE_UPDATE_GOLDEN=1 uv run pytest tests/unit/media/test_render_build.py` and review the diff.
 - Integration tests render a synthetic clip whose frames encode their own index in grey bands and check,
   frame by frame, which source frame every output frame comes from.
+
+## User interface (`ui/`)
+
+| Module | Responsibility |
+|---|---|
+| `controller.py` | `ProjectController`: the UI's only way to change a project. Wraps `ProjectSession`, reports rejected commands (`error`) and side effects (`notice`), tracks selection, current clip and timeline, and autosaves 0.8 s after each change. Changes made on the UI thread refresh at once; changes from worker threads are queued. |
+| `jobs.py` | `JobRunner` bridges `core.jobs` to Qt (callbacks on the UI thread); `JobsPanel` lists jobs with progress, ETA and cancel. |
+| `timescale.py` | Pure geometry (time ↔ pixels, zoom, frame/edge snapping, hit testing, drag limits), unit tested. |
+| `source_view.py` | Thumbnails, waveform and the red/blue/yellow lanes; drag to create/move/resize zones, marks. |
+| `timeline_view.py` | Segments, transitions, texts and music; drag to reorder and trim. |
+| `inspector.py` | Forms for the selected zone, segment or text; every edit is a command. |
+| `settings_panel.py` | Project settings, end card and music of the current timeline, brand kits, preferences. |
+| `player.py` | libmpv software rendering into a `QImage` plus Qt-painted overlays; placeholder without libmpv. |
+| `playback.py` | Source / Edit (EDL instant preview from proxies) / Draft modes; `DraftRenderer` re-renders drafts in the background (debounced, cancellable). |
+| `media_bin.py`, `history_panel.py`, `export_dialog.py`, `system_check.py`, `log_console.py` | The remaining panels and dialogs. |
+| `main_window.py`, `app.py` | Layout, menus, shortcuts, status bar activity indicator; application start-up. |
+
+GUI tests run offscreen (`tests/gui/`); the player test renders real frames with libmpv when it is
+installed and checks that the frame shown is the one requested.
 
 `logs.py` configures logging: a rotating `eve.log` in the user log folder (`platformdirs`) and the
 console.

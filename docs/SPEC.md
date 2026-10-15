@@ -319,7 +319,10 @@ stdout/stderr and exit code are captured to the log, and progress is parsed from
 
 ### 8.1 Main window
 - **Media bin** (left): project clips with thumbnails, durations, status (proxy ready, analysed).
-- **Player** (centre): mpv embedded via `python-mpv`, toggle between *Source* and *Edit timeline* playback.
+- **Player** (centre): mpv via `python-mpv`, toggle between *Source*, *Edit timeline* (instant preview)
+  and *Draft* playback. EVE uses libmpv's software render API into a Qt widget (no native window
+  embedding, no shared OpenGL context), so it works on X11, Wayland and Windows and overlays are plain
+  Qt painting. Without libmpv the player shows how to install it and everything else keeps working.
 - **Source view** (below player): thumbnail strip, waveform, red/blue/yellow lanes, playhead.
 - **Edit timeline** (bottom): video segments, overlay track, music track.
 - **Right panel tabs**: Settings, Inspector (selected zone/segment/text), Agent activity + prompt box,
@@ -333,7 +336,9 @@ stdout/stderr and exit code are captured to the log, and progress is parsed from
 - Background jobs (proxies, analysis, draft renders, AI runs) appear in a job list.
 - The UI never blocks: heavy work runs in worker threads/processes.
 - Keyboard: `Space` play/pause, `J`/`K`/`L` shuttle, `←`/`→` frame step, `I`/`O` mark in/out,
-  `R`/`B`/`Y` create zone from marks, `Del` delete, `Ctrl+Z`/`Ctrl+Shift+Z` undo/redo, `F12` log console.
+  `R`/`B`/`Y` create zone from marks, `Del` delete, `Ctrl+Z`/`Ctrl+Shift+Z` undo/redo, `F12` log console,
+  `A` add the marked range to the edit timeline, `T` add text, `Ctrl+I` import, `Ctrl+E` export,
+  `Ctrl+D` render draft.
 - UI strings are English and wrapped for translation (Qt translation system), so other languages can be
   added later.
 - Light and dark themes following the system.

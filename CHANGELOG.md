@@ -28,4 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Output presets 16:9, 9:16 and 4:5; draft renders from proxies.
 - `eve validate` and `eve render`.
 - Three selectable text looks (`classic`, `band`, `bold`) using the brand kit's accent colour.
+- Graphical editor for manual editing: media bin with background import, player (libmpv) with source,
+  instant edit preview and draft modes, source view with editable red/blue/yellow zone lanes, edit
+  timeline with drag to reorder and trim, inspector, project settings, brand kits, preferences,
+  history with undo/redo, job list, log console (F12), export dialog with validation, system check.
+- Autosave of projects; application settings and brand kits in the user config folder.
 - Bundled Anton font (SIL Open Font License).
