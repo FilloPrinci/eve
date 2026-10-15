@@ -15,7 +15,7 @@ from easy_video_editor.core.errors import CommandError, NotFoundError
 from easy_video_editor.core.model import Origin, Transition, TransitionKind, ZoneKind
 from easy_video_editor.core.session import ProjectSession
 
-from .conftest import AI, AUTO, BLUE, RED, USER, YELLOW, S, zone
+from .conftest import AI, AUTO, BLUE, MEDIA, RED, USER, YELLOW, S, zone
 
 AUTOMATED = [AI, AUTO]
 
@@ -196,7 +196,9 @@ def test_extending_red_zone_trims_other_zones(session: ProjectSession) -> None:
 def test_red_zone_only_affects_its_clip(session: ProjectSession) -> None:
     from easy_video_editor.core.commands import AddClip
 
-    session.execute(AddClip(path="/media/other.mp4", duration_us=60 * S, clip_id="other"), USER)
+    session.execute(
+        AddClip(path=str(MEDIA / "other.mp4"), duration_us=60 * S, clip_id="other"), USER
+    )
     session.execute(CreateZone(kind=BLUE, clip_id="other", start_us=0, end_us=10 * S), USER)
     zone(session, RED, 0, 10)
     assert len(session.project.zones_of("other", BLUE)) == 1
@@ -425,7 +427,9 @@ def test_invariants_report_broken_references(session: ProjectSession) -> None:
     from easy_video_editor.core.model import Segment, Zone
     from easy_video_editor.core.rules import check_invariants
 
-    session.execute(AddClip(path="/media/other.mp4", duration_us=60 * S, clip_id="other"), USER)
+    session.execute(
+        AddClip(path=str(MEDIA / "other.mp4"), duration_us=60 * S, clip_id="other"), USER
+    )
     blue = zone(session, BLUE, 0, 10)
     project = session.project.model_copy(deep=True)
     project.zones += [

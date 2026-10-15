@@ -22,7 +22,7 @@ from easy_video_editor.core.errors import CommandError, NotFoundError
 from easy_video_editor.core.model import EndCard, MusicCue, OutputPreset
 from easy_video_editor.core.session import ProjectSession
 
-from .conftest import AI, BLUE, USER, S, zone
+from .conftest import AI, BLUE, MEDIA, USER, S, zone
 
 
 def segment(session: ProjectSession, start_s: int, end_s: int) -> str:
@@ -36,10 +36,12 @@ def order(session: ProjectSession) -> list[int]:
 
 def test_add_clip_requires_user_and_absolute_path(session: ProjectSession) -> None:
     with pytest.raises(CommandError, match="Only the user"):
-        session.execute(AddClip(path="/media/b.mp4", duration_us=S), AI)
+        session.execute(AddClip(path=str(MEDIA / "b.mp4"), duration_us=S), AI)
     with pytest.raises(CommandError, match="absolute"):
         session.execute(AddClip(path="relative.mp4", duration_us=S), USER)
-    clip_id = session.execute(AddClip(path="/media/b.mp4", duration_us=S), USER).created_ids[0]
+    clip_id = session.execute(AddClip(path=str(MEDIA / "b.mp4"), duration_us=S), USER).created_ids[
+        0
+    ]
     assert session.project.clip(clip_id).name == "b.mp4"
 
 

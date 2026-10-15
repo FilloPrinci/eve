@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from itertools import count
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -10,6 +11,9 @@ from easy_video_editor.core.session import ProjectSession
 
 S = 1_000_000
 """One second in microseconds."""
+
+MEDIA = Path(Path.cwd().anchor) / "media"
+"""An absolute folder on every platform (``/media`` on Linux, ``C:\\media`` on Windows)."""
 
 USER, AI, AUTO = Origin.USER, Origin.AI, Origin.AUTO
 RED, BLUE, YELLOW = ZoneKind.EXCLUDE, ZoneKind.CANDIDATE, ZoneKind.HIGHLIGHT
@@ -24,7 +28,7 @@ def sequential_ids() -> Callable[[str], str]:
 def session() -> ProjectSession:
     """A project with one 60 s clip ``clip`` and one 16:9 timeline ``tl``."""
     session = ProjectSession(Project(name="Test"), id_factory=sequential_ids())
-    session.execute(AddClip(path="/media/clip.mp4", duration_us=60 * S, clip_id="clip"), USER)
+    session.execute(AddClip(path=str(MEDIA / "clip.mp4"), duration_us=60 * S, clip_id="clip"), USER)
     session.execute(CreateTimeline(aspect="16:9", timeline_id="tl"), USER)
     return session
 
