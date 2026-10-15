@@ -103,6 +103,8 @@ def render_timeline(
     Final renders use two-pass loudness normalisation; drafts are rendered from proxies at
     reduced size with single-pass normalisation. The output is written atomically.
     """
+    # ffmpeg runs in a work folder, so every path it is given must be absolute.
+    project_dir, output = project_dir.resolve(), output.resolve()
     timeline_id = timeline_for(project, preset)
     report = validate_for_render(project, timeline_id, preset, file_exists=file_exists)
     if not report.ok:

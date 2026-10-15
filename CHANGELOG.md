@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The AppImage now uses the system's own libraries; each release is tested on Fedora before it is
   published.
 - Leaving a zone's label field in the inspector without changing anything no longer locks the zone.
+- Rendering a draft failed when the project was given with a relative path on the command line
+  (e.g. `eve render my.eve --draft`).
 
 ## [0.1.0-alpha.1] - 2026-10-15
 

@@ -92,3 +92,17 @@ def test_ai_mode_and_ask_use_the_configured_provider(
     captured = capsys.readouterr()
     assert "→ get_project_state()" in captured.out
     assert "Tokens: 120 in, 30 out." in captured.err
+
+
+def test_relative_paths_work_end_to_end(
+    media_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ffmpeg renders in a work folder: relative project paths must still find the proxies."""
+    shutil.copy(media_dir / "bursts.mp4", tmp_path / "bursts.mp4")
+    monkeypatch.chdir(tmp_path)
+    assert main(["new", ".", "--name", "Rel"]) == EXIT_OK
+    assert main(["import", "Rel.eve", "bursts.mp4"]) == EXIT_OK
+    for command in ("analyze", "refine", "assemble"):
+        assert main([command, "Rel.eve"]) == EXIT_OK
+    assert main(["render", "Rel.eve", "--draft"]) == EXIT_OK
+    assert list((tmp_path / "Rel.eve" / "exports").glob("*-draft.mp4"))

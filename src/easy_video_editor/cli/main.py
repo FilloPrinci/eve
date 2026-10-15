@@ -383,6 +383,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_help()
         return EXIT_OK
     log_file = setup_logging(logging.DEBUG if args.verbose else logging.WARNING)
+    for name in ("project", "dir", "output"):  # relative paths are relative to the shell's folder
+        if isinstance(getattr(args, name, None), Path):
+            setattr(args, name, getattr(args, name).resolve())
     handler: Callable[[argparse.Namespace], int] = args.handler
     try:
         return handler(args)
