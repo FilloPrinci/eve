@@ -46,7 +46,8 @@ def test_check_source_states(tmp_path: Path) -> None:
     assert check_source(clip) is SourceState.OK
     os.utime(path, ns=(1, 1))  # touched but identical: still OK
     assert check_source(clip) is SourceState.OK
-    path.write_bytes(b"modified")
+    path.write_bytes(b"modified")  # same size, different content
+    os.utime(path, ns=(2, 2))  # explicit: Windows file times may not advance within ~15 ms
     assert check_source(clip) is SourceState.CHANGED
     path.write_bytes(b"much longer content")
     assert check_source(clip) is SourceState.CHANGED
