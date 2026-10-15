@@ -106,6 +106,12 @@ def test_user_modification_locks_and_explicit_unlock(session: ProjectSession) ->
     session.execute(UpdateZone(zone_id=blue, end_us=6 * S), AI)
 
 
+def test_an_unchanged_update_does_not_lock(session: ProjectSession) -> None:
+    blue = zone(session, BLUE, 0, 5, AI, label="Launch")
+    session.execute(UpdateZone(zone_id=blue, label="Launch", end_us=5 * S), USER)
+    assert not session.project.zone(blue).locked
+
+
 def test_zone_must_fit_clip_and_reference_existing_clip(session: ProjectSession) -> None:
     with pytest.raises(CommandError, match="ends after the end of clip"):
         zone(session, BLUE, 55, 61)

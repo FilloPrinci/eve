@@ -103,6 +103,7 @@ class UpdateZone(Command):
         zone = project.zone(self.zone_id)
         _check_mutable(zone, ctx, "modify")
         old_range = (zone.start_us, zone.end_us)
+        before = zone.model_copy()
         if self.start_us is not None:
             zone.start_us = self.start_us
         if self.end_us is not None:
@@ -115,8 +116,10 @@ class UpdateZone(Command):
             zone.score = self.score
         if self.priority is not None:
             zone.priority = self.priority
+        changed = zone != before
         zone.stale = False
-        if ctx.origin is Origin.USER and zone.kind is not ZoneKind.EXCLUDE:
+        # Only a real change locks the zone (not e.g. leaving an unchanged label field).
+        if changed and ctx.origin is Origin.USER and zone.kind is not ZoneKind.EXCLUDE:
             zone.locked = True
 
         result = CommandResult()
