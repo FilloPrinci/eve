@@ -213,3 +213,24 @@ def test_full_manual_trailer(
     dialog.export()
     output = tmp_path / "out" / "Media-youtube.mp4"
     qtbot.waitUntil(output.is_file, timeout=120_000)
+
+
+def test_run_all_phases_from_the_panel(media_window: MainWindow, qtbot: QtBot) -> None:
+    from easy_video_editor.core.model import Origin, ZoneKind
+    from easy_video_editor.ui.automation_panel import ALL_PHASES
+
+    panel = media_window.automation
+    assert not panel.mode.model().item(1).isEnabled()  # type: ignore[attr-defined]
+    history = len(media_window.controller.session.history)  # type: ignore[union-attr]
+    finished: list[bool] = []
+    panel.run(list(ALL_PHASES), then=lambda: finished.append(True))
+    qtbot.waitUntil(lambda: bool(finished), timeout=120_000)
+    project = media_window.controller.project
+    assert project is not None
+    assert project.zones_of_kind(ZoneKind.CANDIDATE) and project.zones_of_kind(ZoneKind.HIGHLIGHT)
+    assert project.timelines and project.timelines[0].segments
+    entries = media_window.controller.session.history[history:]  # type: ignore[union-attr]
+    assert [entry.origin for entry in entries] == [Origin.AUTO] * 3
+    texts = [panel.activity.item(i).text() for i in range(panel.activity.count())]
+    assert any("candidate zones" in text for text in texts) and texts[-1] == "Done."
+    assert media_window.controller.current_timeline_id == project.timelines[0].id

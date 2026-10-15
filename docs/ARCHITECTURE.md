@@ -17,7 +17,7 @@ core                     ──► project model, zones, edit timeline, commands
 `core`, `media`, `analysis` and `ai` must not import Qt. This is enforced by
 `tests/unit/test_layering.py`.
 
-## Current state (M4 — GUI, manual mode)
+## Current state (M5 — Analysis and Auto mode)
 
 | Package | Status |
 |---|---|
@@ -27,7 +27,8 @@ core                     ──► project model, zones, edit timeline, commands
 | `easy_video_editor.cli` | `eve` entry point (`cli/main.py`): `doctor`, `new`, `import`, `relink`, `validate`, `render`. |
 | `easy_video_editor.ui` | PySide6 GUI for manual editing (see below). |
 | `easy_video_editor.appsettings` | Application settings (binary paths, proxy height, brand kits, recent projects) in the user config folder. |
-| `analysis`, `ai`, `mcp` | Empty packages. |
+| `easy_video_editor.analysis` | Numeric features, beat detection, scoring, Auto-mode planners for phases 1–3 and "Refresh stale", follow-crop paths. |
+| `ai`, `mcp` | Empty packages. |
 
 ## Core
 
@@ -103,6 +104,20 @@ EditTimeline ──build.py──► RenderGraph ──ffmpeg.py──► filter
 - Integration tests render a synthetic clip whose frames encode their own index in grey bands and check,
   frame by frame, which source frame every output frame comes from.
 
+## Analysis and Auto mode (`analysis/`)
+
+| Module | Responsibility |
+|---|---|
+| `features.py` | One ffmpeg pass for video (64×36 grey at 10 Hz → motion, motion centroid, scene cuts by histogram distance) and one for audio (RMS energy, librosa onset strength). Cached as `cache/<content key>_features_v1.npz`. |
+| `beats.py` | librosa beat tracking on the music; the beat period is the median beat interval. Cached by content. |
+| `scoring.py` | Robust normalisation, mood weights, smoothing (edge-preserving), masking of red/locked ranges. |
+| `auto.py` | Pure planners: `plan_phase1` (candidates from score runs), `plan_phase2` (best shot-length windows inside candidates ± tolerance, priorities by rank), `plan_phase3` (one timeline per aspect family, hook/build-up/climax, mood transitions and speeds, beat-length shots), `plan_refresh_stale`. |
+| `plan.py` | `Plan` (commands + activity messages) and `apply_plan`: one transaction = one undo step with origin `auto`; optional commands (e.g. transitions that would need red frames) may be rejected silently. |
+| `pipeline.py` | Runs what a phase needs (features, beats) and returns its plan. |
+| `follow.py` | Smoothed motion paths for follow-crop renders, from cached features. |
+
+Plans are computed off the UI thread from a project snapshot and applied on the UI thread.
+
 ## User interface (`ui/`)
 
 | Module | Responsibility |
@@ -116,6 +131,7 @@ EditTimeline ──build.py──► RenderGraph ──ffmpeg.py──► filter
 | `settings_panel.py` | Project settings, end card and music of the current timeline, brand kits, preferences. |
 | `player.py` | libmpv software rendering into a `QImage` plus Qt-painted overlays; placeholder without libmpv. |
 | `playback.py` | Source / Edit (EDL instant preview from proxies) / Draft modes; `DraftRenderer` re-renders drafts in the background (debounced, cancellable). |
+| `automation_panel.py` | The *Agent* tab: mode (Auto now, AI later), phase buttons, Run all, Refresh stale, activity log. |
 | `media_bin.py`, `history_panel.py`, `export_dialog.py`, `system_check.py`, `log_console.py` | The remaining panels and dialogs. |
 | `main_window.py`, `app.py` | Layout, menus, shortcuts, status bar activity indicator; application start-up. |
 

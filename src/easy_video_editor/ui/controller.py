@@ -13,6 +13,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
 
+from easy_video_editor.analysis.plan import Plan, PlanResult, apply_plan
 from easy_video_editor.appsettings import AppSettings, save_app_settings
 from easy_video_editor.core.brand import BrandKit
 from easy_video_editor.core.commands import Command, CommandResult
@@ -136,6 +137,21 @@ class ProjectController(QObject):
             log.info("%s", message)
             self.notice.emit(message)
         return result
+
+    def apply_plan(self, plan: Plan) -> PlanResult | None:
+        """Apply an automation plan as one undo step (origin: auto)."""
+        if self.session is None:
+            return None
+        outcome = apply_plan(self.session, plan, Origin.AUTO)
+        for message in outcome.notices:
+            self.notice.emit(message)
+        if outcome.rejected:
+            self.error.emit(
+                self.tr("{count} automatic change(s) were rejected; see the log.").replace(
+                    "{count}", str(len(outcome.rejected))
+                )
+            )
+        return outcome
 
     def undo(self) -> None:
         if self.session and self.session.can_undo:

@@ -31,6 +31,28 @@ EVE is in early development. This guide grows as features land.
 Every change is saved automatically and can be undone (`Ctrl+Z` / `Ctrl+Shift+Z`, History tab).
 Press `F12` for the log console.
 
+## Letting EVE do the work (Auto mode)
+
+Auto mode needs no AI and works offline. In the **Agent** tab (or the **Auto** menu):
+
+1. Mark anything that must never appear with **red** zones first.
+2. **Phase 1: find candidates** analyses motion, scene cuts and audio and creates **blue** zones.
+3. **Phase 2: refine highlights** picks the best shot inside each blue zone (**yellow** zones). With
+   music, shot lengths follow its beat.
+4. **Phase 3: assemble the edit** builds one edit timeline per output format: strongest shot first,
+   rising build-up, climax last, transitions and speed according to the mood.
+
+**Run all phases** chains the three. Zones you create or edit are locked: automation works around
+them. Each run is one undo step. When you change a blue zone, its yellow zones turn *stale*
+(dashed); **Refresh stale** regenerates only what is affected.
+
+From the command line:
+
+    eve analyze  "~/Videos/V-Core teaser.eve"
+    eve refine   "~/Videos/V-Core teaser.eve"
+    eve assemble "~/Videos/V-Core teaser.eve"
+    eve refresh  "~/Videos/V-Core teaser.eve"
+
 ## Checking your system
 
     uv run eve doctor

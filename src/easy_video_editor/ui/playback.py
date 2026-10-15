@@ -17,9 +17,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from easy_video_editor.analysis.follow import follow_paths
 from easy_video_editor.core.jobs import Job, JobContext
 from easy_video_editor.core.model import Clip, EditTimeline, OutputPreset, Project
 from easy_video_editor.core.timecode import format_us
+from easy_video_editor.media.cache import MediaCache
 from easy_video_editor.media.preview import (
     EdlEntry,
     edl_entries,
@@ -99,7 +101,10 @@ class DraftRenderer(QObject):
         if self._job is not None and not self._job.state.finished:
             self.runner.cancel(self._job.id)
         snapshot = project.model_copy(deep=True)
-        options = RenderOptions(brand=self.controller.brand_kit())
+        options = RenderOptions(
+            brand=self.controller.brand_kit(),
+            follow_paths=follow_paths(project, MediaCache(project_dir)),
+        )
 
         def work(ctx: JobContext) -> str:
             try:

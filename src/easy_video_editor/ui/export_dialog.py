@@ -21,9 +21,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from easy_video_editor.analysis.follow import follow_paths
 from easy_video_editor.core.jobs import JobContext
 from easy_video_editor.core.model import OutputPreset
 from easy_video_editor.core.validation import Issue, Severity, validate_for_render
+from easy_video_editor.media.cache import MediaCache
 from easy_video_editor.media.render.build import RenderError, RenderOptions
 from easy_video_editor.media.render.renderer import render_timeline, timeline_for
 from easy_video_editor.ui.controller import ProjectController, Selection, SelectionKind
@@ -141,7 +143,10 @@ class ExportDialog(QDialog):
         snapshot = project.model_copy(deep=True)
         folder = Path(self.folder.text())
         draft = self.draft.isChecked()
-        options = RenderOptions(brand=self.controller.brand_kit())
+        options = RenderOptions(
+            brand=self.controller.brand_kit(),
+            follow_paths=follow_paths(project, MediaCache(project_dir)),
+        )
         for preset in self.selected():
             output = folder / f"{project.name}-{preset.id}{'-draft' if draft else ''}.mp4"
 

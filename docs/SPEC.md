@@ -148,10 +148,14 @@ Both modes produce their results exclusively through commands (§7.3), so result
 ### 5.1 Phase 1 — Preliminary analysis → blue zones
 Two-step analysis, skipping red ranges:
 1. **Numeric pass over the whole clip** (fast, local, cached per clip):
-   - scene cuts (PySceneDetect or ffmpeg `scdet`);
-   - motion intensity per time window (frame differencing / optical-flow magnitude on downscaled frames, OpenCV);
+   - scene cuts (histogram distance between consecutive downscaled frames);
+   - motion intensity per time window (frame differencing on downscaled frames) and the motion
+     centroid, which also drives follow-crop reframing;
    - audio energy, peaks and onsets (librosa);
-   - result: a time series of features and a ranked list of candidate windows.
+   - result: a time series of features (10 values per second) and a ranked list of candidate windows.
+   Frames are decoded by ffmpeg at 64×36 grey and processed with numpy, so OpenCV and PySceneDetect
+   are not needed. Features are cached per clip content; red ranges are masked out before scoring,
+   so they are never scored, selected or sent to an AI.
 2. **AI review** (AI mode only): for the top candidate windows, EVE sends the model a compact summary of
    features plus a small number of **downscaled frames** (JPEG, e.g. 512 px wide) if the model supports
    vision. The model creates blue zones with `score` and `label`.
@@ -178,13 +182,19 @@ Uses only yellow zones (non-stale preferred; warn on stale):
   fades, game-audio mixing/ducking under music, loudness normalisation;
 - produce one edit timeline per **aspect-ratio family** when reframing changes the composition
   (16:9 and 9:16 may need different shot choices/crops); presets of the same family share a timeline.
+- Re-running Phase 3 rebuilds the segments of those timelines and removes texts it added; texts added by
+  the user, music and end-card settings are kept. Like every phase run, it is one undo step.
 
 ### 5.4 Auto mode (no AI)
 Deterministic heuristics using the same numeric features:
 - Phase 1: score = weighted sum of normalised motion, audio energy and scene-change density; take the top
   windows above a threshold, merge neighbours, respect min/max lengths.
 - Phase 2: inside each blue, find the highest-scoring sub-window of a rhythm-compliant length, snap to beats.
-- Phase 3: template-based assembly (fixed structure per mood), ordered by score with an escalating curve.
+- Phase 3: template-based assembly (fixed structure per mood), ordered by score with an escalating curve:
+  strongest shot first (hook), build-up by rising score, second strongest last (climax). Moods:
+  *adrenaline* (cuts, slight speed-up on the build-up, flash and slow motion on the climax), *epic*
+  (dip to black and slow motion on the climax), *cinematic* (crossfades). Vertical/4:5 timelines use
+  shots 20% shorter. With music, shot lengths are whole beats and the music starts on its first beat.
 Auto mode is the reference baseline and the fallback when no provider is configured.
 
 ### 5.5 Targeted follow-up requests
@@ -371,6 +381,7 @@ eve relink <project> [--search <dir>]...  # find moved source files by content
 eve analyze  <project> [--mode ai|auto]     # Phase 1
 eve refine   <project> [--mode ai|auto]     # Phase 2
 eve assemble <project> [--mode ai|auto]     # Phase 3
+eve refresh  <project> [--mode ai|auto]     # regenerate stale items only
 eve render   <project> [--preset ...] [--draft]
 eve validate <project>
 ```
@@ -400,7 +411,8 @@ number); conflicting concurrent edits are rejected with a clear error.
 - **Python 3.12**, managed with **uv**; `pyproject.toml` with `hatchling`.
 - **PySide6** (Qt 6) for the GUI, **python-mpv** for playback.
 - **ffmpeg / ffprobe** (external binaries) for probing, proxies and rendering.
-- **numpy**, **opencv-python-headless**, **scenedetect**, **librosa** + **soundfile** for analysis.
+- **numpy** and **librosa** (which brings **soundfile**) for analysis. OpenCV and PySceneDetect were
+  planned but are not needed: video features are computed with numpy on frames decoded by ffmpeg.
 - **pydantic** for the model, **platformdirs**, **keyring**.
 - **anthropic** and **openai** SDKs for providers; the official **mcp** Python SDK for the MCP server.
 - Dev: **pytest**, **pytest-qt**, **ruff** (lint + format), **mypy** (strict on `core`, `media`, `analysis`, `ai`).

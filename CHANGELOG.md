@@ -33,4 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timeline with drag to reorder and trim, inspector, project settings, brand kits, preferences,
   history with undo/redo, job list, log console (F12), export dialog with validation, system check.
 - Autosave of projects; application settings and brand kits in the user config folder.
+- Analysis of clips (motion, scene cuts, motion centroid, audio energy and onsets) with caching, and
+  beat detection on music.
+- Auto mode: Phase 1 (candidate zones), Phase 2 (highlights snapped to the music beat) and Phase 3
+  (assembled timelines per aspect ratio with mood-based transitions and speed), plus "Refresh stale",
+  from the Agent panel, the Auto menu and `eve analyze/refine/assemble/refresh`.
+- Follow-crop reframing uses the motion path found by the analysis.
 - Bundled Anton font (SIL Open Font License).

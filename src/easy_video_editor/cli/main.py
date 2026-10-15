@@ -170,12 +170,16 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_render(args: argparse.Namespace) -> int:
+    from easy_video_editor.analysis.follow import follow_paths
     from easy_video_editor.media.binaries import Toolchain
+    from easy_video_editor.media.cache import MediaCache
+    from easy_video_editor.media.render.build import RenderOptions
     from easy_video_editor.media.render.renderer import ValidationFailed, render_timeline
 
     toolchain = Toolchain.discover()
     project = load_project(args.project)
     output_dir = args.output or args.project / "exports"
+    options = RenderOptions(follow_paths=follow_paths(project, MediaCache(args.project)))
     for preset in _selected_presets(project, args.preset):
         suffix = "-draft" if args.draft else ""
         output = output_dir / f"{project.name}-{preset.id}{suffix}.mp4"
@@ -186,6 +190,7 @@ def cmd_render(args: argparse.Namespace) -> int:
                 preset,
                 output,
                 toolchain,
+                options=options,
                 draft=args.draft,
                 progress=TerminalProgress(preset.name),
             )
@@ -195,6 +200,49 @@ def cmd_render(args: argparse.Namespace) -> int:
             raise
         print(output)
     return EXIT_OK
+
+
+def _run_phase(args: argparse.Namespace, phase_name: str) -> int:
+    from easy_video_editor.analysis.pipeline import Phase, plan_phase
+    from easy_video_editor.analysis.plan import apply_plan
+    from easy_video_editor.media.binaries import Toolchain
+    from easy_video_editor.media.cache import MediaCache
+
+    if args.mode == "ai":
+        raise EveError("AI mode is not available yet; use --mode auto.")
+    phase = Phase(phase_name)
+    toolchain = Toolchain.discover()
+    session = ProjectSession(load_project(args.project))
+    plan = plan_phase(
+        phase,
+        session.project,
+        MediaCache(args.project),
+        toolchain,
+        progress=TerminalProgress(phase.value.capitalize()),
+    )
+    outcome = apply_plan(session, plan, Origin.AUTO)
+    for message in plan.messages + outcome.notices:
+        print(message)
+    for message in outcome.rejected:
+        print(f"Rejected: {message}", file=sys.stderr)
+    save_project(session.project, args.project)
+    return EXIT_OK
+
+
+def cmd_analyze(args: argparse.Namespace) -> int:
+    return _run_phase(args, "analyze")
+
+
+def cmd_refine(args: argparse.Namespace) -> int:
+    return _run_phase(args, "refine")
+
+
+def cmd_assemble(args: argparse.Namespace) -> int:
+    return _run_phase(args, "assemble")
+
+
+def cmd_refresh(args: argparse.Namespace) -> int:
+    return _run_phase(args, "refresh")
 
 
 # --- Parser ------------------------------------------------------------------------------------
@@ -235,6 +283,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         help="folder to search (repeatable; default: the folder containing the project)",
     )
+    for name, handler, text in (
+        ("analyze", cmd_analyze, "phase 1: find candidate (blue) zones"),
+        ("refine", cmd_refine, "phase 2: refine highlight (yellow) zones"),
+        ("assemble", cmd_assemble, "phase 3: assemble the edit timeline(s)"),
+        ("refresh", cmd_refresh, "regenerate stale highlights and segments only"),
+    ):
+        phase = add(name, handler, text)
+        phase.add_argument("project", type=Path, help="project folder (.eve)")
+        phase.add_argument("--mode", choices=["auto", "ai"], default="auto")
+
     validate = add("validate", cmd_validate, "run the final validation for output presets")
     validate.add_argument("project", type=Path, help="project folder (.eve)")
     validate.add_argument("--preset", action="append", help="preset id (default: enabled ones)")

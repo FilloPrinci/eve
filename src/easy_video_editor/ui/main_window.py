@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from easy_video_editor import __version__
+from easy_video_editor.analysis.pipeline import Phase
 from easy_video_editor.appsettings import AppSettings
 from easy_video_editor.core.commands import (
     AddSegment,
@@ -39,6 +40,7 @@ from easy_video_editor.core.jobs import JobManager
 from easy_video_editor.core.model import ZoneKind
 from easy_video_editor.core.persistence import project_dir_for
 from easy_video_editor.media.doctor import run_checks
+from easy_video_editor.ui.automation_panel import ALL_PHASES, AutomationPanel
 from easy_video_editor.ui.controller import ProjectController, Selection, SelectionKind
 from easy_video_editor.ui.export_dialog import ExportDialog
 from easy_video_editor.ui.history_panel import HistoryPanel
@@ -110,13 +112,11 @@ class MainWindow(QMainWindow):
         self.inspector = Inspector(self.controller)
         self.history = HistoryPanel(self.controller)
         self.jobs_panel = JobsPanel(self.runner)
-        agent = QLabel(self.tr("AI assistance arrives in a later version of EVE."))
-        agent.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        agent.setWordWrap(True)
+        self.automation = AutomationPanel(self.controller, self.runner)
         self.tabs = QTabWidget()
         self.tabs.addTab(self.settings_panel, self.tr("Settings"))
         self.tabs.addTab(self.inspector, self.tr("Inspector"))
-        self.tabs.addTab(agent, self.tr("Agent"))
+        self.tabs.addTab(self.automation, self.tr("Agent"))
         self.tabs.addTab(self.history, self.tr("History"))
         self.tabs.addTab(self.jobs_panel, self.tr("Jobs"))
         self._dock(
@@ -242,6 +242,15 @@ class MainWindow(QMainWindow):
         action(timeline, self.tr("Add marked range"), self.add_marked_range, "A")
         action(timeline, self.tr("Add text"), self.add_text, "T")
         action(timeline, self.tr("Render draft"), self.playback.draft.render_now, "Ctrl+D")
+
+        auto = self.menuBar().addMenu(self.tr("&Auto"))
+        action(auto, self.tr("Phase 1: find candidates"), lambda: self.run_phases([Phase.ANALYZE]))
+        action(auto, self.tr("Phase 2: refine highlights"), lambda: self.run_phases([Phase.REFINE]))
+        action(
+            auto, self.tr("Phase 3: assemble the edit"), lambda: self.run_phases([Phase.ASSEMBLE])
+        )
+        action(auto, self.tr("Run all phases"), lambda: self.run_phases(list(ALL_PHASES)))
+        action(auto, self.tr("Refresh stale"), lambda: self.run_phases([Phase.REFRESH]))
 
         view = self.menuBar().addMenu(self.tr("&View"))
         log_toggle = self.log_dock.toggleViewAction()
@@ -427,6 +436,13 @@ class MainWindow(QMainWindow):
     def _show_inspector(self) -> None:
         if self.controller.selection is not None:
             self.tabs.setCurrentWidget(self.inspector)
+
+    def run_phases(self, phases: list[Phase]) -> None:
+        if self.controller.project is None:
+            self.show_error(self.tr("Open a project first."))
+            return
+        self.tabs.setCurrentWidget(self.automation)
+        self.automation.run(phases)
 
     # --- Playback ------------------------------------------------------------------------------
 
