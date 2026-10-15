@@ -49,6 +49,7 @@ def run(
     on_chunk: Callable[[bytes], None] | None = None,
     check: bool = True,
     cwd: Path | None = None,
+    log_stdout: bool = True,
 ) -> ProcessResult:
     """Run a process to completion.
 
@@ -97,7 +98,7 @@ def run(
         command, returncode, "".join(stdout_lines), "".join(stderr_lines), duration
     )
     log.info("Exit code %d after %.2f s: %s", returncode, duration, command[0])
-    if result.stdout:
+    if result.stdout and log_stdout:
         log.debug("stdout of %s:\n%s", command[0], result.stdout.rstrip())
     if result.stderr:
         log.debug("stderr of %s:\n%s", command[0], result.stderr.rstrip())
