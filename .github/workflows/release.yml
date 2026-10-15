@@ -141,8 +141,17 @@ jobs:
       - name: Test the AppImage on Fedora
         if: runner.os == 'Linux'
         run: |
+          set +e
           docker run --rm -v "$PWD/out:/out:ro" -v "$PWD/packaging:/packaging:ro" fedora:latest \
-            sh /packaging/test_appimage.sh "/out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage"
+            sh /packaging/test_appimage.sh "/out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage" \
+            > fedora.log 2>&1
+          status=$?
+          cat fedora.log
+          if [ $status -ne 0 ]; then
+            # The end of the log as one annotation (readable without access to the full log).
+            echo "::error title=AppImage test on Fedora failed::$(tail -40 fedora.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+          fi
+          exit $status
 
       - uses: actions/upload-artifact@v4
         with:

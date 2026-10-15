@@ -12,6 +12,11 @@ cd "$work"
 chmod +x EVE.AppImage
 ./EVE.AppImage --appimage-extract > /dev/null  # no FUSE in containers
 export QT_QPA_PLATFORM=offscreen
+echo "Libraries the bundle needs but this system lacks:"
+find squashfs-root/usr/lib/eve/_internal -name "*.so*" -type f | while read -r library; do
+    LD_LIBRARY_PATH=squashfs-root/usr/lib/eve/_internal ldd "$library" 2>/dev/null \
+        | grep "not found" | sed "s|^|  $(basename "$library"):|"
+done | sort -u | grep -v -E "tbbpool|qgtk3|libQt6(Pdf|Quick|Qml|VirtualKeyboard|WlShell)|egldeviceintegrations|qxcb|xcbglintegrations" || true
 eve() { ./squashfs-root/AppRun cli "$@"; }
 eve --version
 eve doctor
