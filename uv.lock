@@ -135,6 +135,7 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pydantic" },
     { name = "pyside6" },
+    { name = "python-mpv" },
 ]
 
 [package.dev-dependencies]
@@ -153,6 +154,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.2" },
     { name = "pydantic", specifier = ">=2.8" },
     { name = "pyside6", specifier = ">=6.7" },
+    { name = "python-mpv", specifier = ">=1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -531,6 +533,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d3/61/8bdec02663c18bf5016709b909411dce04a868710477dc9b9844ffcf8dd2/pytest_qt-4.5.0.tar.gz", hash = "sha256:51620e01c488f065d2036425cbc1cbcf8a6972295105fd285321eb47e66a319f", size = 128702, upload-time = "2025-07-01T17:24:39.889Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/d0/8339b888ad64a3d4e508fed8245a402b503846e1972c10ad60955883dcbb/pytest_qt-4.5.0-py3-none-any.whl", hash = "sha256:ed21ea9b861247f7d18090a26bfbda8fb51d7a8a7b6f776157426ff2ccf26eff", size = 37214, upload-time = "2025-07-01T17:24:38.226Z" },
+]
+
+[[package]]
+name = "python-mpv"
+version = "1.0.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/bc/6aa34c8805ff62e2fefc7d171563c60598aac215d5241186031a2c839935/python_mpv-1.0.8.tar.gz", hash = "sha256:017fa359da059c831a94c419083491903e6d2f7c81b9841c33c196cabf4b3fe3", size = 52680, upload-time = "2025-04-25T09:51:40.048Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/f3/4c632eaacebfc62ab9414586137aecf6c0ea2a1e99708cf5a4c0dec13ae0/python_mpv-1.0.8-py3-none-any.whl", hash = "sha256:b5296403e990fb7348df4ca2211937a030f524bf638657bda7e45a00bc2df0cd", size = 46169, upload-time = "2025-04-25T09:51:37.775Z" },
 ]
 
 [[package]]
