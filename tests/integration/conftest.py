@@ -92,6 +92,57 @@ def decode_frame_indexes(path: Path) -> list[int | None]:
     return indexes
 
 
+BURSTS = [(8.0, 13.0), (20.0, 24.0)]
+"""Time ranges (s) of motion and loud audio in the bursts clip; still and quiet elsewhere."""
+
+
+def make_bursts_clip(path: Path) -> Path:
+    """30 s: grey still frames with a quiet tone, and moving test patterns with loud audio at
+    8-13 s and 20-24 s (so scene cuts at 8, 13, 20 and 24 s)."""
+    still = "color=c=gray:s=320x180:r=25:d={d}"
+    moving = "testsrc2=s=320x180:r=25:d={d}"
+    quiet = "aevalsrc='0.02*sin(2*PI*200*t)':s=48000:d={d}"
+    loud = "aevalsrc='0.8*sin(2*PI*300*t)*(0.5+0.5*sin(2*PI*4*t))':s=48000:d={d}"
+    parts = [
+        (still, quiet, 8),
+        (moving, loud, 5),
+        (still, quiet, 7),
+        (moving, loud, 4),
+        (still, quiet, 6),
+    ]
+    graph = []
+    for index, (video, audio, seconds) in enumerate(parts):
+        graph.append(f"{video.format(d=seconds)}[v{index}]")
+        graph.append(f"{audio.format(d=seconds)}[a{index}]")
+    inputs = "".join(f"[v{i}][a{i}]" for i in range(len(parts)))
+    graph.append(f"{inputs}concat=n={len(parts)}:v=1:a=1[v][a]")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-filter_complex",
+            ";".join(graph),
+            "-map",
+            "[v]",
+            "-map",
+            "[a]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            str(path),
+        ],
+        check=True,
+    )
+    return path
+
+
 @pytest.fixture(scope="session")
 def toolchain() -> Toolchain:
     return Toolchain.discover()
@@ -104,6 +155,21 @@ def media_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     make_clip(directory / "silent.mp4", 2, audio=False)
     make_clip(directory / "long.mp4", 20, size="640x480")
     make_coded_clip(directory / "coded.mp4")
+    make_bursts_clip(directory / "bursts.mp4")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "aevalsrc='if(lt(mod(t,0.5),0.03),sin(2*PI*1000*t),0)+0.2*sin(2*PI*110*t)':s=44100:d=20",
+            str(directory / "click.wav"),
+        ],
+        check=True,
+    )
     subprocess.run(
         ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
          "sine=frequency=220:sample_rate=48000:duration=20", str(directory / "music.mp3")],

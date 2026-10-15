@@ -374,6 +374,9 @@ class Project(EveModel):
             if zone.clip_id == clip_id and (kind is None or zone.kind is kind)
         ]
 
+    def zones_of_kind(self, kind: ZoneKind) -> list[Zone]:
+        return [zone for zone in self.zones if zone.kind is kind]
+
     def children_of(self, zone_id: str) -> list[Zone]:
         return [zone for zone in self.zones if zone.parent_id == zone_id]
 
