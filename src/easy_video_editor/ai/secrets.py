@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from easy_video_editor.core.errors import EveError
 
 SERVICE = "EVE"
@@ -19,10 +21,12 @@ def get_api_key(provider: str) -> str | None:
 def set_api_key(provider: str, key: str) -> None:
     try:
         import keyring
+        from keyring.errors import PasswordDeleteError
 
         if key:
             keyring.set_password(SERVICE, provider, key)
-        else:
+            return
+        with contextlib.suppress(PasswordDeleteError):  # nothing stored
             keyring.delete_password(SERVICE, provider)
     except Exception as error:
         raise EveError(f"Cannot store the API key in the system keyring: {error}") from error
