@@ -529,6 +529,8 @@ subtitles via speech-to-text, additional languages for the UI, Flatpak.
   with `cli` as its first argument. Builds come from `.github/workflows/release.yml`, which smoke-tests
   the packaged programs (doctor, Auto pipeline, draft render, GUI start-up) before publishing.
 - Pre-releases (`v0.1.0-alpha.N`) may be published before M9 so the owner can test on real machines.
+- Publishing: push a `v*` tag, or run *Release* from the Actions tab with the tag name (the workflow
+  creates the tag on the built commit). The tag must match `__version__` (PEP 440 comparison).
 - README has a prominent "Download" section pointing to the latest release, plus build-from-source steps.
 
 ---

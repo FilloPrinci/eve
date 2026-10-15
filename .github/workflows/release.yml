@@ -1,15 +1,24 @@
 name: Release
 
-# Builds the Windows zip and the Linux AppImage. On a tag v* it publishes them with SHA256SUMS
-# to a GitHub Release (a pre-release when the tag has a suffix such as -alpha.1). Run it by hand
-# (workflow_dispatch) to get the builds as workflow artifacts without publishing anything.
+# Builds the Windows zip and the Linux AppImage and publishes them with SHA256SUMS to a GitHub
+# Release (a pre-release when the tag has a suffix such as -alpha.1), either when a v* tag is pushed
+# or when the workflow is run by hand from the Actions tab with a tag name. Run by hand without a
+# tag, it only builds (the files are kept as workflow artifacts).
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create and publish, e.g. v0.1.0-alpha.1 (empty: build only)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+
+env:
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
 
 jobs:
   build:
@@ -47,9 +56,9 @@ jobs:
         id: version
         run: |
           VERSION=$(uv run python -c "import easy_video_editor as e; print(e.__version__)")
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            uv run python packaging/check_version.py "$GITHUB_REF_NAME"
-            VERSION="${GITHUB_REF_NAME#v}"
+          if [ -n "$TAG" ]; then
+            uv run python packaging/check_version.py "$TAG"
+            VERSION="${TAG#v}"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -136,7 +145,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -152,8 +161,15 @@ jobs:
       - name: Create the release
         run: |
           cd out && sha256sum EVE-* > SHA256SUMS && cat SHA256SUMS && cd ..
-          python3 packaging/release_notes.py "$GITHUB_REF_NAME" > notes.md
+          python3 packaging/release_notes.py "$TAG" > notes.md
           prerelease=""
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease="--prerelease"; fi
-          gh release create "$GITHUB_REF_NAME" out/* --title "EVE ${GITHUB_REF_NAME#v}" \
-            --notes-file notes.md $prerelease
+          if [[ "$TAG" == *-* ]]; then prerelease="--prerelease"; fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # Created on the Releases page: attach the files and fill in the notes.
+            gh release upload "$TAG" out/* --clobber
+            gh release edit "$TAG" --title "EVE ${TAG#v}" --notes-file notes.md $prerelease
+          else
+            # The tag is created on the commit that was built.
+            gh release create "$TAG" out/* --target "$GITHUB_SHA" --title "EVE ${TAG#v}" \
+              --notes-file notes.md $prerelease
+          fi
