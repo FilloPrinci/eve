@@ -7,8 +7,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from PySide6.QtCore import QLibraryInfo, QLocale, QTranslator
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtCore import QLibraryInfo, QLocale, QTimer, QTranslator
+from PySide6.QtGui import QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication
 
 from easy_video_editor import __version__
@@ -33,14 +33,21 @@ def install_translations(app: QApplication) -> None:
             app.installTranslator(translator)
 
 
+SMOKE_TEST = "--smoke-test"
+"""Start, show the main window and quit after a moment (used to check release builds)."""
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(argv) if argv is not None else sys.argv
+    smoke_test = SMOKE_TEST in args
+    args = [arg for arg in args if arg != SMOKE_TEST]
     app = QApplication(args)
     app.setApplicationName("EVE")
     app.setApplicationDisplayName("EVE")
     app.setOrganizationName("EVE")
     app.setApplicationVersion(__version__)
     app.setStyle("Fusion")  # follows the system light/dark colour scheme
+    app.setWindowIcon(QIcon(str(RESOURCES_DIR / "icons" / "eve.svg")))
     install_translations(app)
     QFontDatabase.addApplicationFont(str(DEFAULT_FONT))
 
@@ -53,7 +60,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     window.show()
     if len(args) > 1 and Path(args[1]).is_dir():
         window.open_project(Path(args[1]))
-    window.maybe_first_run_check()
+    if smoke_test:
+        QTimer.singleShot(1500, app.quit)
+    else:
+        window.maybe_first_run_check()
     return app.exec()
 
 
