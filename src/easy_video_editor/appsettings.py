@@ -14,6 +14,7 @@ from pathlib import Path
 import platformdirs
 from pydantic import Field, ValidationError
 
+from easy_video_editor.ai.runner import AiSettings
 from easy_video_editor.core.brand import BrandKit
 from easy_video_editor.core.errors import NotFoundError
 from easy_video_editor.core.model import EveModel
@@ -37,6 +38,7 @@ class AppSettings(EveModel):
     recent_projects: list[str] = Field(default_factory=list)
     system_check_done: bool = False
     brand_kits: list[BrandKit] = Field(default_factory=list)
+    ai: AiSettings = Field(default_factory=AiSettings)
 
     def brand_kit(self, kit_id: str) -> BrandKit:
         for kit in self.brand_kits:
