@@ -72,11 +72,20 @@ jobs:
       - name: Bundle FFmpeg
         run: |
           if [ "${{ matrix.platform }}" = windows ]; then pattern='win64-gpl-[0-9.]+\.zip'; else pattern='linux64-gpl-[0-9.]+\.tar\.xz'; fi
-          asset=$(gh api repos/BtbN/FFmpeg-Builds/releases/tags/latest --jq '.assets[].name' \
-            | grep -E "^ffmpeg-n[0-9.]+-latest-$pattern$" | sort -V | tail -1)
+          # BtbN re-uploads the "latest" builds daily: retry while assets are being replaced.
+          for attempt in 1 2 3 4 5; do
+            asset=$(gh api repos/BtbN/FFmpeg-Builds/releases/tags/latest --jq '.assets[].name' \
+              | grep -E "^ffmpeg-n[0-9.]+-latest-$pattern$" | sort -V | tail -1) || true
+            if [ -n "$asset" ] && gh release download latest --repo BtbN/FFmpeg-Builds \
+                --pattern "$asset" --dir build/ffmpeg --clobber; then
+              break
+            fi
+            echo "::warning::FFmpeg download failed (attempt $attempt), retrying in 60 s"
+            asset=""
+            sleep 60
+          done
           test -n "$asset"
           echo "Using $asset"
-          gh release download latest --repo BtbN/FFmpeg-Builds --pattern "$asset" --dir build/ffmpeg
           cd build/ffmpeg
           if [[ "$asset" == *.zip ]]; then 7z x -y "$asset" > /dev/null; else tar -xf "$asset"; fi
           folder="${asset%.zip}"; folder="${folder%.tar.xz}"
