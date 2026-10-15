@@ -16,3 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undoable commands with transactions and history; red-zone, lock, tolerance and staleness rules.
 - Final validation before render.
 - Atomic project save/load with backup and schema versioning.
+- `eve doctor`: checks ffmpeg, ffprobe, libmpv, GPU encoders and the OS keyring, with fix commands
+  for Fedora, Debian/Ubuntu, Arch and Windows.
+- `eve new`, `eve import` (probe, fingerprint, proxies, thumbnail strips, waveforms) and
+  `eve relink` (find moved source files by content).
+- Background job system with progress, ETA and cancellation.
+- Rotating log file in the user log folder.

@@ -17,14 +17,15 @@ core                     ──► project model, zones, edit timeline, commands
 `core`, `media`, `analysis` and `ai` must not import Qt. This is enforced by
 `tests/unit/test_layering.py`.
 
-## Current state (M1 — Core model)
+## Current state (M2 — Media)
 
 | Package | Status |
 |---|---|
 | `easy_video_editor.core` | Project model, commands, session (undo/redo), rules, validation, persistence. |
-| `easy_video_editor.cli` | `eve` entry point (`cli/main.py`); only `--version` so far. |
+| `easy_video_editor.media` | Binary discovery, process runner, ffprobe, fingerprints, relinking, proxies, thumbnail strips, waveforms, system check. |
+| `easy_video_editor.cli` | `eve` entry point (`cli/main.py`): `doctor`, `new`, `import`, `relink`. |
 | `easy_video_editor.ui` | `eve-gui` entry point (`ui/app.py`) opening an empty `MainWindow`. |
-| `media`, `analysis`, `ai`, `mcp` | Empty packages. |
+| `analysis`, `ai`, `mcp` | Empty packages. |
 
 ## Core
 
@@ -37,6 +38,8 @@ core                     ──► project model, zones, edit timeline, commands
 | `core/validation.py` | Final validation before render; independent of the invariants. |
 | `core/persistence.py` | Project folders, atomic `project.json` writes with a `.bak` copy, schema migrations. |
 | `core/timecode.py`, `core/ranges.py` | Microsecond/frame conversions and half-open range arithmetic. |
+| `core/progress.py` | `Progress` callback protocol, `CancellationToken`, `sub_progress`. |
+| `core/jobs.py` | `JobManager`: background jobs on worker threads with state, progress, ETA and cancellation. Listeners run on worker threads; the UI must marshal them to its own thread. |
 
 ### How a command runs
 
@@ -56,6 +59,23 @@ such as zones split by a red zone).
 
 `ProjectSession.project` returns the live model; read it again after each command instead of
 keeping references across commands.
+
+## Media
+
+| Module | Responsibility |
+|---|---|
+| `media/binaries.py` | Finds ffmpeg, ffprobe and libmpv: settings override → bundled with a frozen release → system `PATH`. |
+| `media/process.py` | `run()`: argument lists only, logs command line, exit code, duration, stdout/stderr; terminates the process on cancellation. `FfmpegProgress` parses `-progress pipe:1`. |
+| `media/probe.py` | ffprobe JSON → `ProbeResult` (duration, display size with rotation, frame rate, VFR flag, audio). |
+| `media/fingerprint.py` | `v1:<size>:<mtime_ns>:<sha256 of first/middle/last MiB>`. The *content key* (size + hash) ignores location and mtime. |
+| `media/relink.py` | Detects missing/changed sources; finds moved files by content (same name first). |
+| `media/cache.py` | Paths of generated files inside the project, named by content key so they survive moves. |
+| `media/generate.py` | Proxies (H.264, CFR at the source rate, ≤ 540p, never upscaled, keyframe every second), thumbnail strips (one JPEG + JSON layout; thumbnail *i* shows the frame displayed at *i* × interval), waveforms (min/max peaks, 100 per second, `.npy`). Writes go to a temporary file renamed on success. |
+| `media/importer.py` | Builds the `AddClip` command from probe + fingerprint; generates missing media for a clip. |
+| `media/doctor.py` | System check with copy-pasteable fixes per platform (Fedora, Debian/Ubuntu, Arch, Windows). |
+
+`logs.py` configures logging: a rotating `eve.log` in the user log folder (`platformdirs`) and the
+console.
 
 ## Tooling
 

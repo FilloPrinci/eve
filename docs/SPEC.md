@@ -348,6 +348,7 @@ An `eve` command exposing headless operations (used for automation and for testi
 eve doctor                          # check ffmpeg, ffprobe, libmpv, GPU encoders, keyring
 eve new <dir> --name <name>
 eve import <project> <clip>...
+eve relink <project> [--search <dir>]...  # find moved source files by content
 eve analyze  <project> [--mode ai|auto]     # Phase 1
 eve refine   <project> [--mode ai|auto]     # Phase 2
 eve assemble <project> [--mode ai|auto]     # Phase 3
