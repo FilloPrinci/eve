@@ -17,18 +17,19 @@ core                     ──► project model, zones, edit timeline, commands
 `core`, `media`, `analysis` and `ai` must not import Qt. This is enforced by
 `tests/unit/test_layering.py`.
 
-## Current state (M5 — Analysis and Auto mode)
+## Current state (M6 — AI with Claude)
 
 | Package | Status |
 |---|---|
 | `easy_video_editor.core` | Project model, commands, session (undo/redo), rules, validation, persistence. |
 | `easy_video_editor.media` | Binary discovery, process runner, ffprobe, fingerprints, relinking, proxies, thumbnail strips, waveforms, system check. |
 | `easy_video_editor.media.render` | Edit timeline → render graph → ffmpeg; final and draft renders. |
-| `easy_video_editor.cli` | `eve` entry point (`cli/main.py`): `doctor`, `new`, `import`, `relink`, `validate`, `render`. |
+| `easy_video_editor.cli` | `eve` entry point (`cli/main.py`): `doctor`, `new`, `import`, `relink`, `analyze`, `refine`, `assemble`, `refresh`, `ask`, `mcp`, `validate`, `render`. |
 | `easy_video_editor.ui` | PySide6 GUI for manual editing (see below). |
 | `easy_video_editor.appsettings` | Application settings (binary paths, proxy height, brand kits, recent projects) in the user config folder. |
 | `easy_video_editor.analysis` | Numeric features, beat detection, scoring, Auto-mode planners for phases 1–3 and "Refresh stale", follow-crop paths. |
-| `ai`, `mcp` | Empty packages. |
+| `easy_video_editor.ai` | Tool registry, workspace, agent loop, providers (Claude Code, Anthropic API, fake), prompts, keyring access. |
+| `easy_video_editor.mcp` | stdio MCP server over the tool registry (`eve mcp`). |
 
 ## Core
 
@@ -118,6 +119,24 @@ EditTimeline ──build.py──► RenderGraph ──ffmpeg.py──► filter
 
 Plans are computed off the UI thread from a project snapshot and applied on the UI thread.
 
+## AI (`ai/`) and MCP (`mcp/`)
+
+| Module | Responsibility |
+|---|---|
+| `tools.py` | The tool registry: typed arguments (pydantic → JSON Schema, no extra fields), the phases each tool belongs to, read tools (project state, zones, features, candidate windows, frames, beats, timelines) and thin wrappers over commands. There is no red-zone tool; frames inside red zones are refused; a per-run frame budget limits image requests. All AI changes have origin `ai`, so the core's lock and red-zone rules apply. |
+| `workspace.py` | A project folder the tools work on: reloads `project.json` when it changed on disk before each call and saves atomically after each change. Shared by the MCP server and the in-process agent. |
+| `agent.py` | Provider-neutral agent loop (`run_agent`: tool calls, `tool_result` blocks, images only for vision models, max steps, cancellation, usage), `FakeProvider` for tests and the optional `AnthropicProvider`. |
+| `claude_code.py` | The default provider: runs the user's `claude -p` with built-in tools disabled and only `eve mcp --phase <phase>` attached; parses its `stream-json` output into activity events and usage. |
+| `runner.py` | `AiSettings` (stored in the application settings) and `run_ai_phase`, which picks the provider and the phase prompt (`prompts/*.md`). |
+| `secrets.py` | API keys in the OS keyring (service `EVE`). |
+| `mcp/server.py` | `eve mcp`: lists the phase's tools and runs them through a `Workspace`; frames are returned as JPEG image content. |
+
+How an AI run works in the GUI: the controller saves the project and calls
+`ProjectSession.begin_external`; a background job runs the provider, which edits `project.json`
+through the MCP server (Claude Code) or the workspace (API); the controller polls the file and shows
+each saved state with `set_external`; local editing and undo are paused; `end_external` records the
+whole run as one undo step with origin `ai`.
+
 ## User interface (`ui/`)
 
 | Module | Responsibility |
@@ -131,7 +150,7 @@ Plans are computed off the UI thread from a project snapshot and applied on the 
 | `settings_panel.py` | Project settings, end card and music of the current timeline, brand kits, preferences. |
 | `player.py` | libmpv software rendering into a `QImage` plus Qt-painted overlays; placeholder without libmpv. |
 | `playback.py` | Source / Edit (EDL instant preview from proxies) / Draft modes; `DraftRenderer` re-renders drafts in the background (debounced, cancellable). |
-| `automation_panel.py` | The *Agent* tab: mode (Auto now, AI later), phase buttons, Run all, Refresh stale, activity log. |
+| `automation_panel.py` | The *Agent* tab: Auto or AI mode, phase buttons, Run all, Refresh stale, AI requests, Stop, activity log and token usage. |
 | `media_bin.py`, `history_panel.py`, `export_dialog.py`, `system_check.py`, `log_console.py` | The remaining panels and dialogs. |
 | `main_window.py`, `app.py` | Layout, menus, shortcuts, status bar activity indicator; application start-up. |
 

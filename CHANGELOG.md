@@ -40,3 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the Agent panel, the Auto menu and `eve analyze/refine/assemble/refresh`.
 - Follow-crop reframing uses the motion path found by the analysis.
 - Bundled Anton font (SIL Open Font License).
+- AI mode with Claude: phases 1–3, Refresh stale and targeted requests ("Ask") run with the user's own
+  Claude Code and Claude subscription (no API key), or optionally with an Anthropic API key stored in
+  the system keyring. The project updates live, editing pauses during a run, Stop cancels it, and each
+  run is one undo step. Token usage is shown.
+- `eve analyze/refine/assemble/refresh --mode ai`, `eve ask` and `eve mcp` (an MCP server exposing
+  EVE's editing tools, restricted per phase, to MCP clients such as Claude Code).
+- `eve doctor` and the system check report Claude Code and how to install it.

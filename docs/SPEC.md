@@ -299,8 +299,16 @@ Each phase exposes only the tools it needs (e.g. Phase 1 can create/update/delet
 cannot touch yellow zones or the edit timeline). Red-zone mutation tools do not exist for the AI at all.
 
 ### 7.5 AI layer
-- **Provider adapters** behind one interface: `AnthropicProvider` (first), `OpenAICompatibleProvider`
-  (covers OpenAI, Ollama, LM Studio, llama.cpp server and other compatible endpoints), `GeminiProvider` (later).
+- **Claude Code provider (default)**: many users have a Claude subscription but no API account. EVE runs
+  the user's own Claude Code headless (`claude -p … --output-format stream-json`) with every built-in
+  tool disabled (`--tools ""`), only EVE's MCP server attached (`--strict-mcp-config`, restricted to the
+  current phase's tools via `eve mcp --phase`) and no saved session. The MCP server edits and saves
+  `project.json`; the GUI follows the file live (§11). Usage counts against the user's Claude plan; no
+  API key is involved. Claude Code is installed and logged in once by the user (`eve doctor` and Help →
+  System check show the steps).
+- **Provider adapters** behind one interface for the in-process agent loop: `AnthropicProvider`
+  (optional, API key), `OpenAICompatibleProvider` (M7: OpenAI, Ollama, LM Studio, llama.cpp server and
+  other compatible endpoints), `GeminiProvider` (later). Tests use `FakeProvider`.
 - **Capabilities** per model profile: tool calling, vision, max images per request, context size.
   EVE adapts: no vision → numeric-only analysis; no tool calling → provider not selectable for phases.
 - **Agent loop**: phase-specific system prompt + tools; max steps; per-run token/cost accounting when the
@@ -378,10 +386,12 @@ eve doctor                          # check ffmpeg, ffprobe, libmpv, GPU encoder
 eve new <dir> --name <name>
 eve import <project> <clip>...
 eve relink <project> [--search <dir>]...  # find moved source files by content
-eve analyze  <project> [--mode ai|auto]     # Phase 1
+eve analyze  <project> [--mode ai|auto] [--provider claude_code|anthropic]  # Phase 1
 eve refine   <project> [--mode ai|auto]     # Phase 2
 eve assemble <project> [--mode ai|auto]     # Phase 3
 eve refresh  <project> [--mode ai|auto]     # regenerate stale items only
+eve ask      <project> "<request>"          # targeted follow-up request (AI, §5.5)
+eve mcp --project <project> [--phase …]     # MCP server (§11)
 eve render   <project> [--preset ...] [--draft]
 eve validate <project>
 ```
@@ -394,6 +404,14 @@ eve validate <project>
 clients (e.g. Claude Desktop, Claude Code) can drive a project. The same rule enforcement applies.
 If the GUI has the same project open, it reloads on external changes (file watcher + project revision
 number); conflicting concurrent edits are rejected with a clear error.
+
+`--phase analyze|refine|assemble|followup` limits the exposed tools (default `followup`: all editing
+tools); `--frame-budget` caps the frames a client may view. Every tool call reloads the project if it
+changed on disk and saves it atomically after a change.
+
+While EVE's own AI run is in progress (M6), the GUI polls `project.json`, shows each saved state, pauses
+local editing and undo, and records the whole run as one undo step (origin `ai`). Reloading on changes
+made by *other* clients while the user is also editing, and conflict handling, are M8.
 
 ---
 
@@ -489,9 +507,9 @@ entry under "Unreleased".
 | M3 | **Render engine** | Render graph → ffmpeg for cuts, speed, crops/reframing (3 modes), transitions, text, logo, end card, music + ducking, loudnorm; presets 16:9, 9:16, 4:5; draft render; final validation. `eve render` works on synthetic projects. |
 | M4 | **GUI – manual mode** | Media bin, mpv player, source view with three editable lanes, edit timeline with manual editing, inspector, settings, brand kits, history, log console (F12), instant preview (EDL) + draft preview, export dialog. A user can make a full trailer by hand. |
 | M5 | **Analysis + Auto mode** | Numeric features with caching, Phases 1–3 in Auto mode from GUI and CLI, beat detection on music, staleness + "Refresh stale". |
-| M6 | **AI – Anthropic** | Tool registry, phase-restricted tools, agent loop, activity panel, cost/usage display, cancellation, keyring storage, Phases 1–3 + follow-up requests with Claude. |
+| M6 | **AI – Claude** | Tool registry, phase-restricted tools, MCP server (`eve mcp`), Claude Code provider (the user's subscription, default) and optional Anthropic API provider, agent loop, activity panel, usage display, cancellation, keyring storage, Phases 1–3 + follow-up requests. |
 | M7 | **AI – other providers** | OpenAI-compatible adapter (OpenAI, Ollama, LM Studio), model capability profiles, numeric-only fallback without vision. |
-| M8 | **MCP server** | `eve mcp` exposes the registry; GUI reloads on external changes; conflict handling. |
+| M8 | **External clients** | GUI reloads on changes made by other MCP clients while it is open; conflict handling. (`eve mcp` itself moved to M6.) |
 | M9 | **Packaging & release** | `release.yml` builds a Windows zip (PyInstaller onedir, bundled ffmpeg/ffprobe/libmpv) and a Linux AppImage, publishes them with `SHA256SUMS` to a GitHub Release on tag `v*`; README links to the latest release; third-party licences included. Tag `v0.1.0`. |
 
 Post-MVP ideas (do not implement unless asked): Gemini adapter, game event logs via `ClipMetadataSource`,
@@ -524,6 +542,10 @@ ffmpeg/mpv build choice must be revisited.
 - ~~Exact default transition and text styles~~ — decided: default transition *cut*; three
   user-selectable text looks with `classic` as the default (§6.3).
 - Default model per provider profile and per-run frame budgets (propose based on cost/quality tests).
+  Current defaults: Claude Code uses the plan's default model; API `claude-sonnet-5-5`, effort `medium`;
+  40 frames per run, at most 6 per call.
+- ~~How users without an API account use AI mode~~ — decided (owner has a Claude subscription only):
+  Claude Code is the default provider (§7.5); the Anthropic API provider stays optional.
 
 ---
 

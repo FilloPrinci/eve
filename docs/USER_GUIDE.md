@@ -53,11 +53,42 @@ From the command line:
     eve assemble "~/Videos/V-Core teaser.eve"
     eve refresh  "~/Videos/V-Core teaser.eve"
 
+## Letting the AI do the work (AI mode)
+
+AI mode uses Claude to look at your footage (numeric summaries and a limited number of small frames,
+never whole videos) and to make the same kind of edits you could make by hand. It respects the same
+rules: it never touches red zones or anything inside them, and it never changes zones you created or
+edited.
+
+EVE uses **your own Claude subscription through Claude Code**, so no API key is needed. Set it up once:
+
+1. Install Claude Code.
+   - Fedora / Linux, in a terminal: `curl -fsSL https://claude.ai/install.sh | bash`
+   - Windows, in PowerShell: `irm https://claude.ai/install.ps1 | iex`
+2. Open a new terminal, run `claude`, and log in with your Claude account when asked. Then type
+   `/exit`.
+3. Check it: `eve doctor` (or **Help → System check**) shows *Claude Code (AI mode): OK*.
+
+Then, in the **Agent** tab, choose **AI** as the mode and use the phase buttons as in Auto mode. The
+activity list shows what the AI is doing; the project updates live; editing is paused until it
+finishes or you press **Stop**. Each run is one undo step. Type a request such as “make the intro
+shorter” and press **Ask** for a targeted change.
+
+AI runs count against your Claude plan's usage limits. **Preferences → AI mode** sets the Claude Code
+model (your plan's default unless you choose one) and the frame budget (how many frames the AI may look
+at per run). If you have an Anthropic API key instead, choose *Anthropic API* there and paste the key:
+it is stored in your system keyring, never in a file.
+
+From the command line:
+
+    eve analyze  "~/Videos/V-Core teaser.eve" --mode ai
+    eve ask      "~/Videos/V-Core teaser.eve" "use more slow motion in the climax"
+
 ## Checking your system
 
     uv run eve doctor
 
-Lists ffmpeg, ffprobe, libmpv, GPU encoders available in your ffmpeg build and the OS keyring,
+Lists ffmpeg, ffprobe, libmpv, GPU encoders available in your ffmpeg build, the OS keyring and Claude Code,
 with a command to fix anything that is missing.
 
 ## Working from the command line
