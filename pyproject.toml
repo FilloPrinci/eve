@@ -36,6 +36,7 @@ dev = [
     "pytest-qt>=4.4",
     "ruff>=0.6",
     "mypy>=1.11",
+    "pytest-github-actions-annotate-failures>=0.4.2",
 ]
 
 [build-system]
