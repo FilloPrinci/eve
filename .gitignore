@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# EVE projects and generated media (never commit)
+*.eve/
+proxies/
+cache/
+thumbs/
+exports/
+tests/fixtures/generated/
+*.mp4
+*.mkv
+*.mov
+*.webm
+*.wav
+*.mp3
+
+# Bundled binaries (only in GitHub Releases)
+*.exe
+*.dll
+*.so
+*.AppImage
+packaging/bin/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
