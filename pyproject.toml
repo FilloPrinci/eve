@@ -17,8 +17,10 @@ classifiers = [
     "Topic :: Multimedia :: Video :: Non-Linear Editor",
 ]
 dependencies = [
+    "anthropic>=1.14",
     "keyring>=25",
     "librosa>=0.10",
+    "mcp>=2.3",
     "numpy>=2.0",
     "platformdirs>=4.2",
     "pydantic>=2.8",
