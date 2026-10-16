@@ -1,11 +1,15 @@
 name: Release
 
-# Builds the Windows zip and the Linux AppImage and publishes them with SHA256SUMS to a GitHub
-# Release (a pre-release when the tag has a suffix such as -alpha.1), either when a v* tag is pushed
-# or when the workflow is run by hand from the Actions tab with a tag name. Run by hand without a
-# tag, it only builds (the files are kept as workflow artifacts).
+# Builds the Windows zip and the Linux AppImage, tests them (Fedora included) and publishes them
+# with SHA256SUMS to a GitHub Release (a pre-release for versions such as 0.1.0a3 -> v0.1.0-alpha.3).
+#
+# Releasing is automatic: when a commit on main carries a version (src/easy_video_editor/__init__.py)
+# that has no tag yet, that version is built, tested and published, and its tag is created. A v* tag
+# pushed by hand, or a run from the Actions tab with a tag name, publishes too; a run from the
+# Actions tab without a tag only builds (the files are kept as workflow artifacts).
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -17,11 +21,38 @@ on:
 permissions:
   contents: read
 
-env:
-  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
-
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide what to build and publish
+        id: plan
+        run: |
+          tag=""; build=false
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            tag="${{ inputs.tag }}"; build=true
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="$GITHUB_REF_NAME"; build=true
+          else
+            tag=$(python3 packaging/tag_for_version.py)
+            if [ -n "$tag" ] && [ -z "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+              echo "New version on main: releasing $tag"
+              build=true
+            else
+              echo "Version ${tag:-(development)} is already released or not a release: nothing to do"
+              tag=""
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +67,7 @@ jobs:
         shell: bash
     env:
       GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.plan.outputs.tag }}
       QT_QPA_PLATFORM: offscreen
       UV_PYTHON_PREFERENCE: only-system
     steps:
@@ -169,13 +201,14 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
-    needs: build
+    needs: [plan, build]
+    if: needs.plan.outputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.plan.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
