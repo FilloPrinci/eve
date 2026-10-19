@@ -8,11 +8,13 @@ the cancellation token fires.
 from __future__ import annotations
 
 import logging
+import os
 import shlex
 import subprocess
+import sys
 import threading
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
@@ -50,13 +52,14 @@ def run(
     check: bool = True,
     cwd: Path | None = None,
     log_stdout: bool = True,
+    env: Mapping[str, str] | None = None,
 ) -> ProcessResult:
     """Run a process to completion.
 
     stdout is captured as text and passed line by line to ``on_line``, unless ``on_chunk`` is
     given: then stdout is read as raw bytes and passed to ``on_chunk`` (and not captured).
     Raises `CancelledError` if ``token`` is cancelled, `ProcessError` on a non-zero exit code
-    when ``check`` is true.
+    when ``check`` is true. ``env`` adds or overrides environment variables.
     """
     command = [str(arg) for arg in args]
     log.info("Running: %s", format_command(command))
@@ -68,6 +71,7 @@ def run(
         stderr=subprocess.PIPE,
         creationflags=_NO_WINDOW,
         cwd=cwd,
+        env=child_environment(env),
     )
     assert process.stdout is not None and process.stderr is not None
     stdout_lines: list[str] = []
@@ -113,6 +117,23 @@ def run(
             result.stderr,
         )
     return result
+
+
+def child_environment(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The environment for a child process.
+
+    In a frozen (PyInstaller) Linux build, ``LD_LIBRARY_PATH`` points at EVE's bundled libraries;
+    other programs (ffmpeg, Claude Code) must get the user's original value instead.
+    """
+    environment = dict(os.environ)
+    if getattr(sys, "frozen", False) and sys.platform.startswith("linux"):
+        original = environment.pop("LD_LIBRARY_PATH_ORIG", None)
+        if original is None:
+            environment.pop("LD_LIBRARY_PATH", None)
+        else:
+            environment["LD_LIBRARY_PATH"] = original
+    environment.update(extra or {})
+    return environment
 
 
 def _read_stdout(

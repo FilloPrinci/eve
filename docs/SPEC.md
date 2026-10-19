@@ -306,6 +306,9 @@ cannot touch yellow zones or the edit timeline). Red-zone mutation tools do not 
   `project.json`; the GUI follows the file live (§11). Usage counts against the user's Claude plan; no
   API key is involved. Claude Code is installed and logged in once by the user (`eve doctor` and Help →
   System check show the steps).
+  EVE starts Claude Code with `MCP_CONNECTION_NONBLOCKING=false` (and a long `MCP_TIMEOUT`) so the
+  model never starts before EVE's tools are connected; a run that ends without any EVE tool call is
+  reported as an error (nothing was changed), never as success.
 - **Provider adapters** behind one interface for the in-process agent loop: `AnthropicProvider`
   (optional, API key), `OpenAICompatibleProvider` (M7: OpenAI, Ollama, LM Studio, llama.cpp server and
   other compatible endpoints), `GeminiProvider` (later). Tests use `FakeProvider`.

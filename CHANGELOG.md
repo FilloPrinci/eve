@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.5] - 2026-10-19
+
+### Fixed
+- AI mode changed nothing: Claude Code could start working before EVE's tools were ready (EVE takes a
+  few seconds to start from the AppImage) and then finished without them. EVE now makes Claude Code
+  wait for its tools, and a run in which Claude used none of them is reported as an error instead of
+  a silent "done".
+- Programs started by the Linux AppImage (FFmpeg, Claude Code) no longer inherit EVE's internal
+  library path.
+
 ## [0.1.0-alpha.4] - 2026-10-19
 
 ### Changed

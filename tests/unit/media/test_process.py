@@ -44,3 +44,20 @@ def test_cancellation_terminates_the_process() -> None:
     timer.start()
     with pytest.raises(CancelledError):
         run([PYTHON, "-c", "import time; time.sleep(30)"], token=token)
+
+
+def test_frozen_linux_builds_give_children_the_original_library_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    from easy_video_editor.media.process import child_environment
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp/.mount_EVE/usr/lib/eve/_internal")
+    monkeypatch.setenv("LD_LIBRARY_PATH_ORIG", "/opt/lib")
+    environment = child_environment({"EXTRA": "1"})
+    assert environment["LD_LIBRARY_PATH"] == "/opt/lib" and environment["EXTRA"] == "1"
+    monkeypatch.delenv("LD_LIBRARY_PATH_ORIG")
+    assert "LD_LIBRARY_PATH" not in child_environment()

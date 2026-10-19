@@ -26,6 +26,16 @@ log = logging.getLogger(__name__)
 
 SERVER_NAME = "eve"
 TOOL_PREFIX = f"mcp__{SERVER_NAME}__"
+CLAUDE_ENVIRONMENT = {
+    # Wait for EVE's MCP server before the first model request; otherwise Claude Code starts
+    # without EVE's tools while the server is still loading, and can change nothing.
+    "MCP_CONNECTION_NONBLOCKING": "false",
+    "MCP_TIMEOUT": "120000",  # ms; a cold start from an AppImage can take a while
+}
+NO_TOOLS_ERROR = (
+    "Claude Code finished without using EVE's tools, so nothing was changed. "
+    "Update Claude Code (run 'claude update') and try again; see the log for details."
+)
 
 
 def find_claude(override: Path | None = None) -> Path | None:
@@ -94,6 +104,8 @@ class StreamParser:
         self.on_event = on_event
         self.result = AgentResult()
         self.finished = False
+        self.server_status: str | None = None
+        self.tool_calls = 0
 
     def feed(self, line: str) -> None:
         line = line.strip()
@@ -105,6 +117,16 @@ class StreamParser:
             return
         kind = event.get("type")
         if kind == "system" and event.get("subtype") == "init":
+            servers = {s.get("name"): s.get("status") for s in event.get("mcp_servers") or []}
+            self.server_status = servers.get(SERVER_NAME)
+            tools = [t for t in event.get("tools") or [] if str(t).startswith(TOOL_PREFIX)]
+            log.info(
+                "Claude Code %s: EVE tools %s (%d available), model %s",
+                event.get("claude_code_version", "?"),
+                self.server_status,
+                len(tools),
+                event.get("model"),
+            )
             model = event.get("model")
             if model:
                 self.on_event(AgentEvent("text", f"Claude Code is using {model}."))
@@ -114,6 +136,8 @@ class StreamParser:
                 if block.get("type") == "text" and block.get("text", "").strip():
                     self.on_event(AgentEvent("text", block["text"].strip()))
                 elif block.get("type") == "tool_use":
+                    if str(block.get("name", "")).startswith(TOOL_PREFIX):
+                        self.tool_calls += 1
                     name = str(block.get("name", "")).removeprefix(TOOL_PREFIX)
                     self.on_event(AgentEvent("tool", describe_call(name, block.get("input") or {})))
         elif kind == "user":
@@ -135,8 +159,14 @@ class StreamParser:
                 event.get("total_cost_usd"),
             )
             text = str(event.get("result") or "")
+            log.info("Claude Code finished: %s, %d EVE tool call(s)", event.get("subtype"),
+                     self.tool_calls)  # fmt: skip
             if event.get("is_error") or event.get("subtype") != "success":
                 self.result.error = text or f"Claude Code stopped ({event.get('subtype')})."
+            elif self.tool_calls == 0:
+                status = f" (EVE's tools: {self.server_status})" if self.server_status else ""
+                self.result.error = NO_TOOLS_ERROR.replace(", so", f"{status}, so", 1)
+                self.result.summary = text
             else:
                 self.result.summary = text
 
@@ -174,6 +204,7 @@ def run_claude_code(
             check=False,
             cwd=Path(folder),
             log_stdout=False,
+            env=CLAUDE_ENVIRONMENT,
         )
     if not parser.finished:
         last = (process.stderr or "").strip().splitlines()[-1:] or ["no output"]

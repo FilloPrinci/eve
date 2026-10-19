@@ -101,3 +101,31 @@ def test_full_run_through_the_mcp_server(project_dir: Path) -> None:
     assert len(errors) == 1 and "exclude" in errors[0].lower()
     zones = [z for z in load_project(project_dir).zones if z.origin is Origin.AI]
     assert [z.label for z in zones] == ["Launch"]
+
+
+def test_a_run_without_eve_tools_is_an_error() -> None:
+    """Claude Code may start before EVE's server is ready and then cannot change anything."""
+    parser = StreamParser(lambda event: None)
+    for event in (
+        {"type": "system", "subtype": "init", "tools": [],
+         "mcp_servers": [{"name": "eve", "status": "pending"}]},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "No tools."}]}},
+        {"type": "result", "subtype": "success", "is_error": False, "result": "Nothing done."},
+    ):  # fmt: skip
+        parser.feed(json.dumps(event))
+    assert parser.result.error is not None
+    assert "pending" in parser.result.error and "nothing was changed" in parser.result.error
+
+
+def test_claude_code_waits_for_eves_server(tmp_path: Path) -> None:
+    from easy_video_editor.ai.claude_code import CLAUDE_ENVIRONMENT
+
+    seen: dict[str, Any] = {}
+
+    def runner(args: list[str], **kwargs: Any) -> ProcessResult:
+        seen.update(kwargs)
+        return ProcessResult(args, 1, "", "stopped\n", 0.1)
+
+    run_claude_code(Path("claude"), tmp_path, ToolPhase.ANALYZE, "p", "s", runner=runner)
+    assert seen["env"] == CLAUDE_ENVIRONMENT
+    assert CLAUDE_ENVIRONMENT["MCP_CONNECTION_NONBLOCKING"] == "false"
