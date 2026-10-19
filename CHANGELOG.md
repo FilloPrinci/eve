@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4] - 2026-10-19
+
+### Changed
+- EVE reopens the last project at start-up.
+
+### Fixed
+- Importing clips with no project open did nothing; it now says to create or open a project first.
+- The import dialog hid videos with upper-case extensions on Linux (e.g. `CLIP.MP4`), and now also
+  offers "All files".
+
 ## [0.1.0-alpha.3] - 2026-10-15
 
 ### Fixed

@@ -39,7 +39,7 @@ from easy_video_editor.core.commands import (
 from easy_video_editor.core.errors import EveError
 from easy_video_editor.core.jobs import JobManager
 from easy_video_editor.core.model import ZoneKind
-from easy_video_editor.core.persistence import project_dir_for
+from easy_video_editor.core.persistence import PROJECT_FILE, project_dir_for
 from easy_video_editor.media.doctor import run_checks
 from easy_video_editor.ui.automation_panel import ALL_PHASES, AutomationPanel
 from easy_video_editor.ui.controller import ProjectController, Selection, SelectionKind
@@ -312,6 +312,17 @@ class MainWindow(QMainWindow):
             self.controller.open_project(folder)
         except EveError as error:
             self.show_error(str(error), dialog=True)
+
+    def reopen_last_project(self) -> None:
+        """Open the most recent project, if it still exists (start-up)."""
+        recent = self.controller.settings.recent_projects
+        if recent and (Path(recent[0]) / PROJECT_FILE).is_file():
+            self.open_project(Path(recent[0]))
+        else:
+            self.statusBar().showMessage(
+                self.tr("Create a project (File → New project…) or open one to start."),
+                STATUS_TIMEOUT_MS,
+            )
 
     def _fill_recent(self) -> None:
         self.recent_menu.clear()

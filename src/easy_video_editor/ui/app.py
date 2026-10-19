@@ -61,6 +61,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     window.show()
     if len(args) > 1 and Path(args[1]).is_dir():
         window.open_project(Path(args[1]))
+    elif not smoke_test:
+        window.reopen_last_project()
     if smoke_test:
         QTimer.singleShot(1500, app.quit)
         app.exec()

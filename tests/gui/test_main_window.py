@@ -210,3 +210,27 @@ def test_export_dialog_blocks_invalid_projects(opened: MainWindow) -> None:
     messages = [dialog.issues.item(i).text() for i in range(dialog.issues.count())]
     assert any("missing" in message for message in messages)  # the source file does not exist
     assert not dialog.export_button.isEnabled()
+
+
+def test_import_without_a_project_explains_what_to_do(window: MainWindow, qtbot: QtBot) -> None:
+    with qtbot.waitSignal(window.controller.error) as signal:
+        window.media_bin.choose_files()
+    assert "project first" in signal.args[0]
+
+
+def test_video_filter_accepts_upper_case_extensions() -> None:
+    from easy_video_editor.ui.media_bin import VIDEO_FILTER
+
+    assert "*.mp4" in VIDEO_FILTER and "*.MP4" in VIDEO_FILTER and "All files (*)" in VIDEO_FILTER
+
+
+def test_the_last_project_is_reopened(window: MainWindow, project_dir: Path) -> None:
+    window.controller.settings.recent_projects = [str(project_dir)]
+    window.reopen_last_project()
+    assert window.controller.project_dir == project_dir
+
+
+def test_a_missing_last_project_is_skipped(window: MainWindow, tmp_path: Path) -> None:
+    window.controller.settings.recent_projects = [str(tmp_path / "Gone.eve")]
+    window.reopen_last_project()
+    assert window.controller.project is None

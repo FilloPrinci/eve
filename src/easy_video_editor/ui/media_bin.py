@@ -29,7 +29,13 @@ from easy_video_editor.ui.jobs import JobRunner
 
 log = logging.getLogger(__name__)
 
-VIDEO_FILTER = "Videos (*.mp4 *.mkv *.mov *.webm *.avi *.m4v *.flv *.ts)"
+VIDEO_EXTENSIONS = ("mp4", "mkv", "mov", "webm", "avi", "m4v", "flv", "ts")
+# File dialog filters are case-sensitive on Linux: list upper case too (CLIP.MP4 from cameras).
+VIDEO_FILTER = (
+    "Videos ("
+    + " ".join(f"*.{ext} *.{ext.upper()}" for ext in VIDEO_EXTENSIONS)
+    + ");;All files (*)"
+)
 
 
 class MediaBin(QWidget):
@@ -61,6 +67,9 @@ class MediaBin(QWidget):
 
     def choose_files(self) -> None:
         if self.controller.project is None:
+            self.controller.error.emit(
+                self.tr("Create or open a project first (File → New project…), then import clips.")
+            )
             return
         paths, _ = QFileDialog.getOpenFileNames(
             self, self.tr("Import clips"), "", self.tr(VIDEO_FILTER)
@@ -69,6 +78,10 @@ class MediaBin(QWidget):
 
     def import_files(self, paths: list[Path]) -> None:
         if self.controller.project is None:
+            if paths:
+                self.controller.error.emit(
+                    self.tr("Create or open a project first, then import clips.")
+                )
             return
         for path in paths:
             self._import_one(path)
