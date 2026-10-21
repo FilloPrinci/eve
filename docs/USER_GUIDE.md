@@ -1,6 +1,6 @@
 # User guide
 
-EVE is in early development. This guide grows as features land.
+This guide covers EVE 0.1.
 
 ## Installing a release
 
@@ -44,6 +44,10 @@ the old one.
 5. In the edit timeline, drag segments to reorder them and drag their edges to trim them. Select a
    segment to set speed, transition and reframing in the Inspector. `T` adds a text.
 6. In **Settings**: output formats, text look (A classic, B band, C bold), brand kit, music, end card.
+   **Brand kits…** edits your reusable logo, game title, call to action, colours, font and music
+   folder, with a preview of the end card in every format. To change the end card of this project,
+   click it at the end of the edit timeline: the Inspector sets its length, call to action, logo
+   and background image, with a live preview. `Del` removes it.
 7. Watch the result: **Edit** plays the cut instantly; **Draft** shows a real low-resolution render
    (*Render draft*, or tick *Auto*).
 8. **File → Export…** (`Ctrl+E`) validates the project and renders every selected format.

@@ -4,7 +4,7 @@ EVE turns raw gameplay recordings into short trailers for YouTube, Shorts, Reels
 Mark what to exclude, let the AI (or the built-in Auto mode) find and trim the best moments,
 preview the edit, tweak it, and render every format in one go. Works on Linux and Windows.
 
-> Status: early development. See the [roadmap](docs/SPEC.md#16-milestones-the-mvp-is-m0m9).
+> Status: first release, 0.1.0. See the [roadmap](docs/SPEC.md#16-milestones-the-mvp-is-m0m9).
 
 ## Download
 Pre-built binaries are on the [Releases page](https://github.com/FilloPrinci/eve/releases)
@@ -19,13 +19,16 @@ Pre-built binaries are on the [Releases page](https://github.com/FilloPrinci/eve
 Verify downloads with the `SHA256SUMS` file attached to each release. AI mode needs Claude Code
 logged in with your Claude account; see the [user guide](docs/USER_GUIDE.md).
 
-## Features (planned for v0.1)
+## Features
 - Three-step workflow with colour-coded zones: exclude (red), candidates (blue), highlights (yellow)
-- AI providers: Anthropic, OpenAI and OpenAI-compatible local models (Ollama, LM Studio)
+- AI mode with Claude, through your own Claude subscription (Claude Code) or an Anthropic API key
 - Auto mode (no AI) and full manual editing
 - Instant preview and draft renders before the final export
 - Output presets for 16:9, 9:16 and 4:5 with automatic reframing
+- Brand kits (logo, title, colours, font, music) and an end card with a live preview
 - Command-line interface and MCP server
+
+Planned: more AI providers (OpenAI-compatible APIs, local models with Ollama or LM Studio).
 
 ## Build from source
 Requirements: Python 3.12, [uv](https://docs.astral.sh/uv/), ffmpeg, libmpv.

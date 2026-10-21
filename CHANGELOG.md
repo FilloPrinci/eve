@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-21
+
+First stable release: everything in the 0.1.0 alpha versions below, plus the following.
+
 ### Added
 - The brand kit editor shows a preview of the end card for YouTube (16:9), Shorts / Reels / TikTok
   (9:16) and Instagram feed (4:5), rendered exactly as in the exported video and updated while you
