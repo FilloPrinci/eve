@@ -41,6 +41,8 @@ the old one.
 
 ## Making a trailer by hand (GUI)
 
+![The main window: media bin, player, source view with its three lanes, edit timeline and inspector](images/main-window.png)
+
 1. **File → New project…**, choose a name and a folder. EVE creates `<name>.eve`.
 2. **Import** clips (button in the Media panel, drag and drop, or `Ctrl+I`). Proxies, thumbnails and
    waveforms are generated in the background (see the *Jobs* tab).
@@ -59,9 +61,15 @@ the old one.
    folder, with a preview of the end card in every format. To change the end card of this project,
    click it at the end of the edit timeline: the Inspector sets its length, call to action, logo
    and background image, with a live preview. `Del` removes it.
+
+   ![Brand kit editor with the end card in every format](images/brand-kits.png)
+
+   ![The end card selected on the edit timeline and edited in the Inspector](images/end-card.png)
 7. Watch the result: **Edit** plays the cut instantly; **Draft** shows a real low-resolution render
    (*Render draft*, or tick *Auto*).
 8. **File → Export…** (`Ctrl+E`) validates the project and renders every selected format.
+
+   ![Export dialog](images/export.png)
 
 Every change is saved automatically and can be undone (`Ctrl+Z` / `Ctrl+Shift+Z`, History tab).
 Press `F12` for the log console.
@@ -76,6 +84,8 @@ Auto mode needs no AI and works offline. In the **Agent** tab (or the **Auto** m
    music, shot lengths follow its beat.
 4. **Phase 3: assemble the edit** builds one edit timeline per output format: strongest shot first,
    rising build-up, climax last, transitions and speed according to the mood.
+
+![The Agent tab after "Run all phases": blue and yellow zones, and one edit timeline per format](images/agent.png)
 
 **Run all phases** chains the three. Zones you create or edit are locked: automation works around
 them. Each run is one undo step. When you change a blue zone, its yellow zones turn *stale*

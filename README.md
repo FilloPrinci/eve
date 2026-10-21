@@ -4,7 +4,9 @@ EVE turns raw gameplay recordings into short trailers for YouTube, Shorts, Reels
 Mark what to exclude, let the AI (or the built-in Auto mode) find and trim the best moments,
 preview the edit, tweak it, and render every format in one go. Works on Linux and Windows.
 
-> Status: first release, 0.1.0. See the [roadmap](docs/SPEC.md#16-milestones-the-mvp-is-m0m9).
+![EVE: media bin, player, source view with the red, blue and yellow lanes, edit timeline and inspector](docs/images/main-window.png)
+
+> Status: first release, 0.1. See the [roadmap](docs/SPEC.md#16-milestones-the-mvp-is-m0m9).
 
 ## Download
 Pre-built binaries are on the [Releases page](https://github.com/FilloPrinci/eve/releases)
@@ -31,6 +33,10 @@ logged in with your Claude account; see the [user guide](docs/USER_GUIDE.md).
 - Output presets for 16:9, 9:16 and 4:5 with automatic reframing
 - Brand kits (logo, title, colours, font, music) and an end card with a live preview
 - Command-line interface and MCP server
+
+| Auto or AI mode does the three phases | Brand kit with an end card preview per format |
+|---|---|
+| ![Agent tab after running all phases](docs/images/agent.png) | ![Brand kit editor with end card previews](docs/images/brand-kits.png) |
 
 Planned: more AI providers (OpenAI-compatible APIs, local models with Ollama or LM Studio).
 
