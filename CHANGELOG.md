@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-21
+
 ### Added
 - Linux installer: `EVE-<version>-linux-x64.tar.gz` with `install.sh`, which installs EVE for the
   current user (no root, no FUSE) with an application menu entry and the `eve-gui` and `eve`
   commands; `uninstall.sh` removes it. The window now matches its menu entry in the taskbar.
+- Screenshots in the README and the user guide.
 
 ## [0.1.0] - 2026-10-21
 
