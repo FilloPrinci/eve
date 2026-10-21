@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Rendering a video with crossfades failed with FFmpeg 7.1 (for example Fedora's RPM Fusion build)
+  with "Conversion failed!".
+
 ## [0.1.0-alpha.5] - 2026-10-19
 
 ### Fixed

@@ -95,11 +95,15 @@ def _reframe_filters(reframe: Reframe, graph: RenderGraph, label: str) -> str:
 
 
 def _exact_length(frames: int, fps: int) -> str:
-    """Cut or extend (by repeating the last frame) to exactly ``frames`` frames."""
+    """Cut or extend (by repeating the last frame) to exactly ``frames`` frames.
+
+    The final ``fps`` changes no frame; it declares the frame rate again, because ``setpts``
+    marks it unknown in ffmpeg 7.1 and ``xfade`` then refuses the stream."""
     return (
         f"fps={fps},trim=end_frame={frames},"
         f"tpad=stop_mode=clone:stop_duration={num(frames / fps + 1)},"
-        f"trim=end_frame={frames},setpts=PTS-STARTPTS,settb=1/{fps},format=yuv420p,setsar=1"
+        f"trim=end_frame={frames},setpts=PTS-STARTPTS,settb=1/{fps},fps={fps},"
+        "format=yuv420p,setsar=1"
     )
 
 
