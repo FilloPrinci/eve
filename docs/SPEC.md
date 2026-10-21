@@ -533,12 +533,19 @@ subtitles via speech-to-text, additional languages for the UI, Flatpak.
 - Source code on GitHub; binaries **only** in GitHub Releases (never committed).
 - Versioning: SemVer, tags `vX.Y.Z`; `CHANGELOG.md` in *Keep a Changelog* format; release notes generated
   from the changelog section.
-- Release assets: `EVE-<version>-windows-x64.zip`, `EVE-<version>-x86_64.AppImage`, `SHA256SUMS`.
+- Release assets: `EVE-<version>-windows-x64.zip`, `EVE-<version>-x86_64.AppImage`,
+  `EVE-<version>-linux-x64.tar.gz`, `SHA256SUMS`.
   The folder holds `eve` (command line, also the MCP server Claude Code starts) and `eve-gui` (the
   editor); FFmpeg/FFprobe go in `bin/`. The Windows zip bundles `libmpv-2.dll`; the AppImage uses the
   system libmpv (bundling it would pull in a whole desktop stack) and runs the command-line program
   with `cli` as its first argument. Builds come from `.github/workflows/release.yml`, which smoke-tests
   the packaged programs (doctor, Auto pipeline, draft render, GUI start-up) before publishing.
+- Linux installer: `EVE-<version>-linux-x64.tar.gz` holds the AppImage's files already extracted
+  (`app/`) with `install.sh`, `uninstall.sh` and `README.txt`. `install.sh` installs for the current
+  user without root or FUSE: the app goes to `$XDG_DATA_HOME/EVE` (replaced on update), `eve-gui` and
+  `eve` go to `~/.local/bin`, and `eve.desktop` (absolute `Exec` and `Icon`, `StartupWMClass=EVE`)
+  to `$XDG_DATA_HOME/applications`. The GUI sets its desktop file name to `eve`. The release workflow
+  installs and uninstalls it in a throw-away home and validates the desktop entry.
 - Pre-releases (`v0.1.0-alpha.N`) may be published before M9 so the owner can test on real machines.
 - Publishing is automatic: a commit on `main` whose `__version__` has no tag yet is built, tested
   and published, and its tag is created (`0.1.0a3` → `v0.1.0-alpha.3`; `.devN` versions are never

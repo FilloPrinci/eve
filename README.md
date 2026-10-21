@@ -11,10 +11,14 @@ Pre-built binaries are on the [Releases page](https://github.com/FilloPrinci/eve
 (early versions are marked *pre-release*):
 - **Windows**: `EVE-<version>-windows-x64.zip`. Unzip it anywhere and run `EVE\eve-gui.exe`.
   FFmpeg and libmpv are included.
-- **Linux**: `EVE-<version>-x86_64.AppImage`. Make it executable (`chmod +x EVE-*.AppImage`) and run
-  it. FFmpeg is included; the video player uses your system's libmpv (Fedora:
-  `sudo dnf install mpv-libs`, Debian/Ubuntu: `sudo apt install libmpv2`). Command-line use:
-  `./EVE-<version>-x86_64.AppImage cli doctor`.
+- **Linux, installed** (recommended): `EVE-<version>-linux-x64.tar.gz`. Extract it and run
+  `./install.sh` inside the folder: EVE is installed for your user (no root needed) and appears in
+  the application menu; `eve-gui` and `eve` work from a terminal. Run a newer `install.sh` to update.
+- **Linux, portable**: `EVE-<version>-x86_64.AppImage`. Make it executable
+  (`chmod +x EVE-*.AppImage`) and run it. Command-line use: `./EVE-<version>-x86_64.AppImage cli doctor`.
+
+On Linux, FFmpeg is included and the video player uses your system's libmpv (Fedora:
+`sudo dnf install mpv-libs`, Debian/Ubuntu: `sudo apt install libmpv2`).
 
 Verify downloads with the `SHA256SUMS` file attached to each release. AI mode needs Claude Code
 logged in with your Claude account; see the [user guide](docs/USER_GUIDE.md).

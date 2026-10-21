@@ -45,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     app = QApplication(args)
     app.setApplicationName("EVE")
     app.setApplicationDisplayName("EVE")
+    app.setDesktopFileName("eve")  # matches eve.desktop: taskbar icon and grouping
     app.setOrganizationName("EVE")
     app.setApplicationVersion(__version__)
     app.setStyle("Fusion")  # follows the system light/dark colour scheme

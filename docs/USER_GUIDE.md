@@ -11,7 +11,18 @@ Download the file for your system from the
   that the app is from an unknown publisher (the builds are not code-signed yet): choose *More info →
   Run anyway*. The command-line program is `EVE\eve.exe`.
 - **Linux (Fedora and others)**: install the player library once (`sudo dnf install mpv-libs` on
-  Fedora), then:
+  Fedora, `sudo apt install libmpv2` on Debian/Ubuntu). Then install EVE for your user, so that it
+  appears in the application menu:
+
+      tar -xzf EVE-<version>-linux-x64.tar.gz
+      cd EVE-<version>-linux-x64
+      ./install.sh
+
+  Start it from the application menu, or with `eve-gui` in a terminal; the command-line program is
+  `eve`. To update, run `install.sh` from the newer version. To uninstall, run
+  `~/.local/share/EVE/uninstall.sh` (projects and settings are kept).
+
+  Or use the portable AppImage, which needs no installation:
 
       chmod +x EVE-<version>-x86_64.AppImage
       ./EVE-<version>-x86_64.AppImage                 # the editor

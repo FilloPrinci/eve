@@ -1,7 +1,8 @@
 name: Release
 
-# Builds the Windows zip and the Linux AppImage, tests them (Fedora included) and publishes them
-# with SHA256SUMS to a GitHub Release (a pre-release for versions such as 0.1.0a3 -> v0.1.0-alpha.3).
+# Builds the Windows zip, the Linux AppImage and the Linux installer archive, tests them (Fedora
+# included) and publishes them with SHA256SUMS to a GitHub Release (a pre-release for versions such
+# as 0.1.0a3 -> v0.1.0-alpha.3).
 #
 # Releasing is automatic: when a commit on main carries a version (src/easy_video_editor/__init__.py)
 # that has no tag yet, that version is built, tested and published, and its tag is created. A v* tag
@@ -81,7 +82,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 \
-            libdbus-1-3 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 file
+            libdbus-1-3 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 file \
+            desktop-file-utils
       - run: uv sync --locked --no-dev --group release
 
       - name: Version
@@ -178,6 +180,25 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool AppDir \
             "out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage"
           APPIMAGE_EXTRACT_AND_RUN=1 "out/EVE-${{ steps.version.outputs.version }}-x86_64.AppImage" cli --version
+
+      - name: Package (Linux installer archive)
+        if: runner.os == 'Linux'
+        run: |
+          # The same files as the AppImage, extracted, with install.sh for a per-user installation
+          # that appears in the application menu (no root, no FUSE).
+          name="EVE-${{ steps.version.outputs.version }}-linux-x64"
+          mkdir -p "$name"
+          cp -a AppDir "$name/app"
+          cp packaging/linux/install.sh packaging/linux/uninstall.sh packaging/linux/README.txt "$name/"
+          tar -czf "out/$name.tar.gz" "$name"
+          # Install into a throw-away home and check what a desktop would see.
+          export HOME="$PWD/home" XDG_DATA_HOME="$PWD/home/.local/share"
+          "./$name/install.sh"
+          desktop-file-validate "$XDG_DATA_HOME/applications/eve.desktop"
+          "$HOME/.local/bin/eve" --version
+          QT_QPA_PLATFORM=offscreen "$HOME/.local/bin/eve-gui" --smoke-test
+          "$XDG_DATA_HOME/EVE/uninstall.sh"
+          test ! -e "$XDG_DATA_HOME/EVE" && test ! -e "$HOME/.local/bin/eve"
 
       - name: Test the AppImage on Fedora
         if: runner.os == 'Linux'
