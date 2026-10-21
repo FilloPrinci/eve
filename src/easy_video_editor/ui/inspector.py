@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -26,6 +28,7 @@ from easy_video_editor.core.commands import (
     DeleteZone,
     RemoveSegment,
     RemoveText,
+    SetEndCard,
     SetTransition,
     SetZoneLock,
     UpdateSegment,
@@ -34,6 +37,7 @@ from easy_video_editor.core.commands import (
 )
 from easy_video_editor.core.errors import NotFoundError
 from easy_video_editor.core.model import (
+    EndCard,
     Reframe,
     ReframeMode,
     Transition,
@@ -43,6 +47,8 @@ from easy_video_editor.core.model import (
 from easy_video_editor.core.timecode import format_us
 from easy_video_editor.media.render.styles import STYLE_NAMES
 from easy_video_editor.ui.controller import ProjectController, Selection, SelectionKind
+from easy_video_editor.ui.end_card_preview import EndCardPreview
+from easy_video_editor.ui.playback import preset_for
 
 US = 1_000_000
 
@@ -369,18 +375,123 @@ class TextForm(_Form):
         self._loading = False
 
 
+class EndCardForm(_Form):
+    """The end card of a timeline, with a preview rendered as in the export."""
+
+    def __init__(self, controller: ProjectController) -> None:
+        super().__init__(controller)
+        self.timeline_id = ""
+        self.brand = QLabel()
+        self.brand.setWordWrap(True)
+        self.duration = seconds_box(maximum=15.0, decimals=1)
+        self.cta = QLineEdit()
+        self.show_logo = QCheckBox(self.tr("Show the brand kit logo"))
+        self.background = QLabel()
+        choose = QPushButton(self.tr("Choose image…"))
+        choose.clicked.connect(self.choose_background)
+        self.clear_background = QPushButton(self.tr("Use brand colour"))
+        self.clear_background.clicked.connect(self.on_edit(lambda: self._update(background=None)))
+        background_buttons = QHBoxLayout()
+        background_buttons.addWidget(choose)
+        background_buttons.addWidget(self.clear_background)
+        remove = QPushButton(self.tr("Remove end card"))
+        remove.clicked.connect(self.on_edit(lambda: self._update(enabled=False)))
+        self.preview = EndCardPreview(controller.toolchain, [])
+        form = self.layout_
+        for name, widget in [
+            (self.tr("Brand kit"), self.brand),
+            (self.tr("Length"), self.duration),
+            (self.tr("Call to action"), self.cta),
+            ("", self.show_logo),
+            (self.tr("Background"), self.background),
+        ]:
+            form.addRow(name, widget)
+        form.addRow("", background_buttons)
+        form.addRow("", remove)
+        form.addRow(self.preview)
+        self.duration.valueChanged.connect(
+            self.on_edit(
+                lambda: self._update(duration_us=max(round(self.duration.value() * US), 100_000))
+            )
+        )
+        self.cta.editingFinished.connect(
+            self.on_edit(lambda: self._update(cta_text=self.cta.text()))
+        )
+        self.show_logo.toggled.connect(
+            self.on_edit(lambda: self._update(show_logo=self.show_logo.isChecked()))
+        )
+
+    def _card(self) -> EndCard | None:
+        project = self.controller.project
+        if project is None:
+            return None
+        return project.timeline(self.timeline_id).end_card
+
+    def _update(self, **changes: object) -> Command | None:
+        card = self._card()
+        if card is None:
+            return None
+        return SetEndCard(timeline_id=self.timeline_id, end_card=card.model_copy(update=changes))
+
+    def choose_background(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, self.tr("Choose background image"), "", self.tr("Images (*.png *.jpg *.jpeg)")
+        )
+        if path:
+            self.on_edit(lambda: self._update(background=str(Path(path).resolve())))()
+
+    def load(self, timeline_id: str) -> None:
+        project = self.controller.project
+        if project is None:
+            return
+        timeline = project.timeline(timeline_id)
+        card = timeline.end_card
+        kit = self.controller.brand_kit()
+        self._loading = True
+        self.timeline_id = timeline_id
+        self.brand.setText(
+            kit.name
+            if kit
+            else self.tr("None. Choose one in Settings to add a logo, title and colours.")
+        )
+        self.duration.setValue(card.duration_us / US)
+        self.cta.setText(card.cta_text)
+        self.cta.setPlaceholderText(
+            self.tr("Brand kit: {text}").replace("{text}", kit.cta_text)
+            if kit and kit.cta_text
+            else ""
+        )
+        self.show_logo.setChecked(card.show_logo)
+        self.show_logo.setEnabled(bool(kit and kit.logo_path))
+        self.background.setText(
+            Path(card.background).name if card.background else self.tr("Brand kit colour")
+        )
+        self.clear_background.setEnabled(card.background is not None)
+        preset = preset_for(project, timeline)
+        self.preview.set_presets([preset] if preset else [])
+        self.preview.show_card(kit, card, project.settings.text_look)
+        self._loading = False
+
+
 class Inspector(QWidget):
     def __init__(self, controller: ProjectController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.controller = controller
-        self.empty = QLabel(self.tr("Select a zone, a segment or a text to edit it."))
+        self.empty = QLabel(self.tr("Select a zone, a segment, a text or the end card to edit it."))
         self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty.setWordWrap(True)
         self.zone_form = ZoneForm(controller)
         self.segment_form = SegmentForm(controller)
         self.text_form = TextForm(controller)
+        self.end_card_form = EndCardForm(controller)
         self.stack = QStackedWidget()
-        for widget in (self.empty, self.zone_form, self.segment_form, self.text_form):
+        for widget in (
+            self.empty,
+            self.zone_form,
+            self.segment_form,
+            self.text_form,
+            self.end_card_form,
+        ):
             self.stack.addWidget(widget)
         layout = QVBoxLayout(self)
         layout.addWidget(self.stack)
@@ -402,5 +513,8 @@ class Inspector(QWidget):
             elif selection.kind is SelectionKind.TEXT and selection.timeline_id:
                 self.text_form.load(selection.timeline_id, selection.item_id)
                 self.stack.setCurrentWidget(self.text_form)
+            elif selection.kind is SelectionKind.END_CARD:
+                self.end_card_form.load(selection.item_id)
+                self.stack.setCurrentWidget(self.end_card_form)
         except NotFoundError:
             self.stack.setCurrentWidget(self.empty)

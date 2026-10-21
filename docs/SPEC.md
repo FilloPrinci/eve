@@ -346,8 +346,12 @@ stdout/stderr and exit code are captured to the log, and progress is parsed from
   Qt painting. Without libmpv the player shows how to install it and everything else keeps working.
 - **Source view** (below player): thumbnail strip, waveform, red/blue/yellow lanes, playhead.
 - **Edit timeline** (bottom): video segments, overlay track, music track.
-- **Right panel tabs**: Settings, Inspector (selected zone/segment/text), Agent activity + prompt box,
-  History.
+- **Right panel tabs**: Settings, Inspector (selected zone/segment/text/end card), Agent activity +
+  prompt box, History.
+- **End card in the inspector**: clicking the end card on the edit timeline selects it. The inspector
+  edits its length, call to action (the brand kit's is the placeholder), logo and background image,
+  removes it (also with Delete), and shows the same end card preview as the brand kit editor for the
+  timeline's output preset, including these project settings.
 - **Log console**: toggled with `F12`, always available, shows all application logs and external process
   output, with "copy" and "export" buttons.
 

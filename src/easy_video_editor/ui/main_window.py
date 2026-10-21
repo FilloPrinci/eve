@@ -35,6 +35,7 @@ from easy_video_editor.core.commands import (
     DeleteZone,
     RemoveSegment,
     RemoveText,
+    SetEndCard,
 )
 from easy_video_editor.core.errors import EveError
 from easy_video_editor.core.jobs import JobManager
@@ -446,6 +447,10 @@ class MainWindow(QMainWindow):
             self.controller.execute(
                 RemoveText(timeline_id=selection.timeline_id, text_id=selection.item_id)
             )
+        elif selection.kind is SelectionKind.END_CARD and self.controller.project:
+            timeline = self.controller.project.timeline(selection.item_id)
+            card = timeline.end_card.model_copy(update={"enabled": False})
+            self.controller.execute(SetEndCard(timeline_id=timeline.id, end_card=card))
 
     def _show_inspector(self) -> None:
         if self.controller.selection is not None:

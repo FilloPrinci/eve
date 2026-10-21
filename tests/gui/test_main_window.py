@@ -234,3 +234,28 @@ def test_a_missing_last_project_is_skipped(window: MainWindow, tmp_path: Path) -
     window.controller.settings.recent_projects = [str(tmp_path / "Gone.eve")]
     window.reopen_last_project()
     assert window.controller.project is None
+
+
+def test_end_card_in_the_inspector(opened: MainWindow, qtbot: QtBot) -> None:
+    controller = opened.controller
+    view = opened.timeline_view
+    assert controller.project is not None and controller.project.timeline("tl").end_card.enabled
+    card = QPoint(round(view.scale.x(S)), view.video_top() + VIDEO_H // 2)
+    QTest.mouseClick(view, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, card)
+    assert controller.selection == Selection(SelectionKind.END_CARD, "tl", "tl")
+    form = opened.inspector.end_card_form
+    assert opened.inspector.stack.currentWidget() is form
+
+    form.cta.setText("Wishlist now")
+    form.cta.editingFinished.emit()
+    form.show_logo.setChecked(False)
+    form.duration.setValue(5.0)
+    card_model = controller.project.timeline("tl").end_card
+    assert (card_model.cta_text, card_model.duration_us) == ("Wishlist now", 5 * S)
+    assert set(form.preview.images) == {"youtube"}
+    image = form.preview.images["youtube"]
+    qtbot.waitUntil(lambda: not image.pixmap().isNull(), timeout=20_000)
+
+    opened.delete_selection()
+    assert not controller.project.timeline("tl").end_card.enabled
+    assert controller.selection is None

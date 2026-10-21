@@ -39,6 +39,8 @@ class SelectionKind(StrEnum):
     ZONE = "zone"
     SEGMENT = "segment"
     TEXT = "text"
+    END_CARD = "end_card"
+    """The end card of a timeline; ``item_id`` is the timeline id."""
 
 
 @dataclass(frozen=True)
@@ -256,6 +258,8 @@ class ProjectController(QObject):
                 return False
             elif selection.kind is SelectionKind.SEGMENT:
                 project.timeline(selection.timeline_id).segment(selection.item_id)
+            elif selection.kind is SelectionKind.END_CARD:
+                return project.timeline(selection.timeline_id).end_card.enabled
             else:
                 project.timeline(selection.timeline_id).text(selection.item_id)
         except NotFoundError:

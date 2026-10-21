@@ -199,6 +199,9 @@ class TimelineView(QWidget):
                 start, start + timeline.end_card.duration_us, self.video_top(), VIDEO_H
             )
             painter.fillRect(rect, END_CARD_COLOR)
+            if selection is not None and selection.kind is SelectionKind.END_CARD:
+                painter.setPen(QPen(self.palette().text().color(), 2))
+                painter.drawRect(rect)
             painter.setPen(QColor("#FFFFFF"))
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.tr("End card"))
 
@@ -262,6 +265,13 @@ class TimelineView(QWidget):
                 segment = timeline.segments[hit.index]
                 self.controller.select(Selection(SelectionKind.SEGMENT, segment.id, timeline.id))
                 self._drag = _Drag("segment", hit.part, segment.id, us, spans[hit.index])
+                return
+            card_start = spans[-1][1] if spans else 0
+            if (
+                timeline.end_card.enabled
+                and card_start <= us < card_start + timeline.end_card.duration_us
+            ):
+                self.controller.select(Selection(SelectionKind.END_CARD, timeline.id, timeline.id))
                 return
         elif self.text_top() <= y < self.text_top() + TEXT_H:
             ranges = [(t.start_us, t.end_us) for t in timeline.texts]
