@@ -18,7 +18,8 @@ design decision changes.
 9. No real AI API calls in tests; use `FakeProvider`.
 10. Non-instant operations show an activity indicator; operations that may exceed ~10 s show a progress bar
     and are cancellable. The UI thread never blocks.
-11. Never commit binaries, generated media, proxies or caches.
+11. Never commit binaries, generated media, proxies or caches. Exception: documentation screenshots
+    in `docs/images` (PNG, kept small, no third-party content).
 
 ## Workflow
 - Follow the milestone plan in `docs/SPEC.md` §16, one milestone at a time.
