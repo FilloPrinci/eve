@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import shutil
+import tempfile
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QImage, QPainter
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QImage, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QColorDialog,
@@ -24,6 +28,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -40,9 +45,20 @@ from easy_video_editor.core.brand import BrandKit
 from easy_video_editor.core.commands import Command, SetEndCard, SetMusic, UpdateSettings
 from easy_video_editor.core.errors import EveError
 from easy_video_editor.core.ids import new_id
-from easy_video_editor.core.model import MusicCue, TextLook, TransitionKind
+from easy_video_editor.core.model import (
+    MusicCue,
+    OutputPreset,
+    TextLook,
+    TransitionKind,
+    default_output_presets,
+)
+from easy_video_editor.core.progress import CancellationToken, CancelledError
+from easy_video_editor.media.binaries import Toolchain
+from easy_video_editor.media.render.renderer import render_end_card_still
 from easy_video_editor.ui.controller import ProjectController
 from easy_video_editor.ui.inspector import seconds_box
+
+log = logging.getLogger(__name__)
 
 US = 1_000_000
 MOODS = ["adrenaline", "cinematic", "epic", "playful", "chill"]
@@ -228,7 +244,16 @@ class ProjectSettingsPanel(QScrollArea):
         self.controller.execute(UpdateSettings(changes={"enabled_preset_ids": ids}))
 
     def manage_brand_kits(self) -> None:
-        dialog = BrandKitDialog(self.controller.settings, self)
+        project = self.controller.project
+        dialog = BrandKitDialog(
+            self.controller.settings,
+            self,
+            toolchain=self.controller.toolchain,
+            text_look=project.settings.text_look if project else TextLook.CLASSIC,
+        )
+        current = self.brand.currentIndex()
+        if current > 0:
+            dialog.list.setCurrentRow(current - 1)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.controller.update_settings(dialog.settings)
 
@@ -328,8 +353,161 @@ class ColorButton(QPushButton):
             self._show()
 
 
+PREVIEW_DELAY_MS = 300
+PREVIEW_SIZE = 240
+"""Longest side of each end card preview, in pixels."""
+
+
+class EndCardPreview(QGroupBox):
+    """End card stills of a brand kit for each default output preset, rendered with ffmpeg
+    exactly as in an export, on a worker thread."""
+
+    _rendered = Signal(int, object)
+    """Generation and a dict of preset id to PNG bytes, or an error message."""
+
+    def __init__(
+        self,
+        toolchain: Callable[[], Toolchain],
+        text_look: TextLook = TextLook.CLASSIC,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(self.tr("End card preview"), parent)
+        self.toolchain = toolchain
+        self.text_look = text_look
+        self.presets = default_output_presets()
+        self._kit: BrandKit | None = None
+        self._generation = 0
+        self._token: CancellationToken | None = None
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(PREVIEW_DELAY_MS)
+        self._timer.timeout.connect(self._render)
+        self._rendered.connect(self._show, Qt.ConnectionType.QueuedConnection)
+
+        self.images: dict[str, QLabel] = {}
+        row = QHBoxLayout()
+        for preset in self.presets:
+            image = QLabel()
+            image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            image.setFixedSize(self._size(preset))
+            image.setStyleSheet("background-color: #222; border: 1px solid #444")
+            caption = QLabel(f"{preset.name}\n{preset.width}×{preset.height}")
+            caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            column = QVBoxLayout()
+            column.addWidget(image, 0, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
+            column.addWidget(caption)
+            row.addLayout(column)
+            self.images[preset.id] = image
+        self.busy = QProgressBar()
+        self.busy.setRange(0, 0)
+        self.busy.setMaximumHeight(8)
+        self.busy.setTextVisible(False)
+        self.busy.setVisible(False)
+        self.status = QLabel()
+        self.status.setWordWrap(True)
+        note = QLabel(
+            self.tr(
+                "Rendered like the export, with the project's text look ({look}). "
+                "A project can override the call to action and the background."
+            ).replace("{look}", text_look.value)
+        )
+        note.setWordWrap(True)
+        layout = QVBoxLayout(self)
+        layout.addLayout(row)
+        layout.addWidget(self.busy)
+        layout.addWidget(self.status)
+        layout.addWidget(note)
+
+    @staticmethod
+    def _size(preset: OutputPreset) -> QSize:
+        scale = PREVIEW_SIZE / max(preset.width, preset.height)
+        return QSize(round(preset.width * scale), round(preset.height * scale))
+
+    def show_kit(self, kit: BrandKit | None) -> None:
+        """Schedule a new preview of ``kit`` (debounced)."""
+        if kit == self._kit and kit is not None:
+            return
+        self._kit = kit
+        self._timer.start()
+
+    def stop(self) -> None:
+        self._timer.stop()
+        self._generation += 1
+        if self._token is not None:
+            self._token.cancel()
+
+    def _render(self) -> None:
+        self.stop()
+        kit = self._kit
+        if kit is None:
+            for image in self.images.values():
+                image.clear()
+            self.busy.setVisible(False)
+            return
+        generation, token = self._generation, CancellationToken()
+        self._token = token
+        self.busy.setVisible(True)
+        presets, text_look, toolchain = self.presets, self.text_look, self.toolchain
+
+        def work() -> None:
+            result: dict[str, bytes] | str
+            try:
+                tools = toolchain()
+                stills: dict[str, bytes] = {}
+                with tempfile.TemporaryDirectory(prefix="eve-preview-") as folder:
+                    for preset in presets:
+                        output = render_end_card_still(
+                            kit,
+                            preset,
+                            Path(folder) / f"{preset.id}.png",
+                            tools,
+                            text_look=text_look,
+                            scale=PREVIEW_SIZE / max(preset.width, preset.height),
+                            token=token,
+                        )
+                        stills[preset.id] = output.read_bytes()
+                result = stills
+            except CancelledError:
+                return
+            except Exception as error:
+                log.warning("End card preview failed: %s", error)
+                result = str(error)
+            # RuntimeError: the dialog was closed meanwhile.
+            with contextlib.suppress(RuntimeError):
+                self._rendered.emit(generation, result)
+
+        threading.Thread(target=work, name="end-card-preview", daemon=True).start()
+
+    def _show(self, generation: int, result: dict[str, bytes] | str) -> None:
+        if generation != self._generation:
+            return
+        self.busy.setVisible(False)
+        if isinstance(result, str):
+            self.status.setText(self.tr("Preview failed: {error}").replace("{error}", result))
+            return
+        self.status.clear()
+        for preset_id, data in result.items():
+            pixmap = QPixmap()
+            pixmap.loadFromData(data, "PNG")
+            label = self.images[preset_id]
+            label.setPixmap(
+                pixmap.scaled(
+                    label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+
+
 class BrandKitDialog(QDialog):
-    def __init__(self, settings: AppSettings, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        settings: AppSettings,
+        parent: QWidget | None = None,
+        *,
+        toolchain: Callable[[], Toolchain],
+        text_look: TextLook = TextLook.CLASSIC,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle(self.tr("Brand kits"))
         self.settings = settings.model_copy(deep=True)
@@ -376,6 +554,8 @@ class BrandKitDialog(QDialog):
         self.editor.setLayout(form)
         for widget in (self.name, self.title_, self.cta, self.font_path, self.music_dir):
             widget.editingFinished.connect(self._store)
+        for line in (self.title_, self.cta):
+            line.textEdited.connect(self._store)
         for button in (self.primary, self.text_color, self.background):
             button.clicked.connect(self._store)
 
@@ -387,8 +567,11 @@ class BrandKitDialog(QDialog):
         top = QHBoxLayout()
         top.addLayout(left, 1)
         top.addWidget(self.editor, 2)
+        self.preview = EndCardPreview(toolchain, text_look)
+        self.finished.connect(lambda _: self.preview.stop())
         layout = QVBoxLayout(self)
         layout.addLayout(top)
+        layout.addWidget(self.preview)
         layout.addWidget(box)
         self._logo_path: str | None = None
         self._reload_list()
@@ -400,6 +583,8 @@ class BrandKitDialog(QDialog):
         self.editor.setEnabled(bool(self.settings.brand_kits))
         if self.settings.brand_kits:
             self.list.setCurrentRow(min(select, len(self.settings.brand_kits) - 1))
+        else:
+            self.preview.show_kit(None)
 
     def _show_kit(self, row: int) -> None:
         if not 0 <= row < len(self.settings.brand_kits):
@@ -419,6 +604,7 @@ class BrandKitDialog(QDialog):
             button._show()
         self.font_path.setText(kit.font_path or "")
         self.music_dir.setText(kit.music_dir or "")
+        self.preview.show_kit(kit)
 
     def _store(self, *_: object) -> None:
         row = self.list.currentRow()
@@ -438,6 +624,7 @@ class BrandKitDialog(QDialog):
             music_dir=self.music_dir.text() or None,
         )
         self.list.item(row).setText(self.settings.brand_kits[row].name)
+        self.preview.show_kit(self.settings.brand_kits[row])
 
     def add_kit(self) -> None:
         self.settings.brand_kits.append(BrandKit(id=new_id("brand"), name=self.tr("New brand kit")))

@@ -8,12 +8,18 @@ from typing import Any
 
 import pytest
 
+from easy_video_editor.core.brand import BrandKit
+from easy_video_editor.core.model import default_output_presets
 from easy_video_editor.core.persistence import create_project
 from easy_video_editor.core.progress import CancellationToken, CancelledError
 from easy_video_editor.core.validation import Severity
 from easy_video_editor.media.binaries import Toolchain
-from easy_video_editor.media.render.build import RenderOptions
-from easy_video_editor.media.render.renderer import ValidationFailed, render_timeline
+from easy_video_editor.media.render.build import RenderOptions, even
+from easy_video_editor.media.render.renderer import (
+    ValidationFailed,
+    render_end_card_still,
+    render_timeline,
+)
 from tests.unit.media.render_fixtures import brand, build_project
 
 from .conftest import CODED_FPS, decode_frame_indexes
@@ -179,3 +185,21 @@ def test_every_text_look_renders(
         options=RenderOptions(brand=brand(media_dir)),
     )  # fmt: skip
     assert int(stream_info(output)["video"]["nb_frames"]) == 169
+
+
+@pytest.mark.parametrize("preset_id", ["youtube", "shorts", "instagram_feed"])
+def test_end_card_still(tmp_path: Path, toolchain: Toolchain, preset_id: str) -> None:
+    from PySide6.QtGui import QColor, QImage
+
+    preset = next(p for p in default_output_presets() if p.id == preset_id)
+    kit = BrandKit(
+        id="kit", name="Kit", game_title="V-CORE", cta_text="Play now", background_color="#2040C0"
+    )
+    output = render_end_card_still(kit, preset, tmp_path / "card.png", toolchain, scale=0.25)
+    image = QImage(str(output))
+    assert (image.width(), image.height()) == (even(preset.width / 4), even(preset.height / 4))
+    corner = QColor(image.pixel(2, 2))
+    assert abs(corner.red() - 0x20) < 12 and abs(corner.blue() - 0xC0) < 12
+    # The title is drawn in the brand's text colour (white) near 42% of the height.
+    row = round(image.height() * 0.42)
+    assert any(QColor(image.pixel(x, row)).lightness() > 200 for x in range(image.width()))

@@ -7,12 +7,22 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 import uuid
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
-from easy_video_editor.core.model import Clip, OutputPreset, Project
+from easy_video_editor.core.brand import BrandKit
+from easy_video_editor.core.model import (
+    Clip,
+    EditTimeline,
+    EndCard,
+    OutputPreset,
+    Project,
+    ProjectSettings,
+    TextLook,
+)
 from easy_video_editor.core.progress import (
     CancellationToken,
     Progress,
@@ -26,9 +36,14 @@ from easy_video_editor.media.probe import probe
 from easy_video_editor.media.process import FfmpegProgress, run
 from easy_video_editor.media.render.build import RenderError, RenderOptions, build_graph
 from easy_video_editor.media.render.ffmpeg import (
+    AUDIO_OUT,
+    VIDEO_OUT,
     EncodeSettings,
     filter_script,
+    filter_script_option,
+    input_args,
     measure_args,
+    num,
     render_args,
 )
 from easy_video_editor.media.render.graph import Loudness, RenderGraph
@@ -181,4 +196,49 @@ def render_timeline(
         partial.unlink(missing_ok=True)
         shutil.rmtree(workdir, ignore_errors=True)
     progress(1.0, "Done")
+    return output
+
+
+def render_end_card_still(
+    brand: BrandKit | None,
+    preset: OutputPreset,
+    output: Path,
+    toolchain: Toolchain,
+    *,
+    end_card: EndCard | None = None,
+    text_look: TextLook = TextLook.CLASSIC,
+    scale: float = 1.0,
+    token: CancellationToken | None = None,
+) -> Path:
+    """Render one frame from the middle of an end card to a PNG ``output``.
+
+    Uses the same graph as a real render, so the preview matches the exported video.
+    """
+    card = (end_card or EndCard()).model_copy(update={"enabled": True})
+    timeline = EditTimeline(id="end_card", name="End card", aspect=preset.aspect, end_card=card)
+    project = Project(
+        name="End card preview",
+        timelines=[timeline],
+        settings=ProjectSettings(text_look=text_look),
+    )
+    options = RenderOptions(brand=brand, scale=scale, loudness=False, duck_game_audio=False)
+    graph = build_graph(project, timeline, preset, options)
+    output = output.resolve()
+    # Texts fade in at the start of the card; the middle shows the steady state.
+    middle = num(graph.duration_s / 2)
+    with tempfile.TemporaryDirectory(prefix="eve-end-card-") as folder:
+        workdir = Path(folder) / "still"
+        _prepare_workdir(graph, workdir)
+        run(
+            [
+                str(toolchain.ffmpeg), "-hide_banner", "-nostdin", "-y",
+                *input_args(graph),
+                filter_script_option(ffmpeg_major_version(toolchain.ffmpeg)), SCRIPT_NAME,
+                "-map", f"[{VIDEO_OUT}]", "-ss", middle, "-frames:v", "1", "-update", "1",
+                str(output),
+                "-map", f"[{AUDIO_OUT}]", "-f", "null", "-",
+            ],
+            token=token,
+            cwd=workdir,
+        )  # fmt: skip
     return output

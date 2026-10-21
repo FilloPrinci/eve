@@ -378,6 +378,10 @@ stdout/stderr and exit code are captured to the log, and progress is parsed from
   library folder. Bundle at least one open-licence font (OFL) so text rendering works out of the box
   (EVE bundles *Anton*). The renderer reads PNG/JPEG logos; SVG logos are rasterised to PNG when they are
   added to a brand kit.
+  The brand kit editor shows an **end card preview** for each default output preset (16:9, 9:16, 4:5):
+  one still from the middle of the card, rendered in the background with the same render graph and
+  ffmpeg as an export (debounced after each edit), using the open project's text look. A project's
+  end card can still override the call to action and the background.
 
 ---
 
